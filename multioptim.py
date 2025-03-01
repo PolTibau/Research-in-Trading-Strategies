@@ -7,15 +7,12 @@ import sys
 import logging
 import contextlib
 from concurrent.futures import ProcessPoolExecutor, as_completed
+from S_CCI_optimized_strategy import MyPandasDataSentiment4_R, SentimentMomentumStrategy4_R
+from S_R_optimized_strategy import MyPandasDataSentiment3_R, SentimentMomentumStrategy_R
+from S_SMI_optimized_strategy import MyPandasDataSentiment5_R, SentimentSMIStrategy_R, SMI
+from S_WPR_EMA_optimized_strategy import MyPandasDataSentiment7_R, SentimentWPR2Strategy_R, WPR
+from S_WPR_RSI_optimized_strategy import MyPandasDataSentiment6_R, SentimentWPRStrategy_R, WPR
 
-# Importamos las estrategias y los feeds personalizados
-from multistrategy import (
-    MyPandasDataSentiment6, SentimentWPRStrategy,
-    MyPandasDataSentiment7, SentimentWPR2Strategy,
-    MyPandasDataSentiment3, SentimentMomentumStrategy1,
-    MyPandasDataSentiment4, SentimentMomentumStrategy2,
-    MyPandasDataSentiment5, SentimentSMIStrategy
-)
 
 #Creem una funció per actualitzar els paràmetres de les estratègies
 def update_multistrategy(best_params_dict):
@@ -97,7 +94,7 @@ def run_backtest(strategy_cls, data_cls, strategy_params):
 
 def objective(trial, strategy_cls, data_cls):
     param_space = {
-        SentimentWPRStrategy: {
+        SentimentWPRStrategy_R: {
             'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
             'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
             'wpr_os': trial.suggest_int('wpr_os', -100, -75),
@@ -106,7 +103,7 @@ def objective(trial, strategy_cls, data_cls):
             'rsi_ob': trial.suggest_int('rsi_ob', 60, 75),
             'period': trial.suggest_int('period', 10, 30),
         },
-        SentimentWPR2Strategy: {
+        SentimentWPR2Strategy_R: {
             'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
             'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
             'wpr_os': trial.suggest_int('wpr_os', -100, -75),
@@ -115,14 +112,14 @@ def objective(trial, strategy_cls, data_cls):
             'ema_period': trial.suggest_int('ema_period', 15, 50),
             'ema_th': trial.suggest_int('ema_th', 40, 60),
         },
-        SentimentMomentumStrategy1: {
+        SentimentMomentumStrategy_R: {
             'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
             'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
             'neutral_lower': trial.suggest_int('neutral_lower', BBr_min, BBr_av),
             'neutral_upper': trial.suggest_int('neutral_upper', BBr_av, BBr_max),
             'momentum_days': trial.suggest_int('momentum_days', 1, 6),
         },
-        SentimentMomentumStrategy2: {
+        SentimentMomentumStrategy4_R: {
             'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
             'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
             'cci_upper_threshold': trial.suggest_int('cci_upper_threshold', 70, 140),
@@ -131,7 +128,7 @@ def objective(trial, strategy_cls, data_cls):
             'neutral_upper': trial.suggest_int('neutral_upper', BBr_av, BBr_max),
             'sma_period': trial.suggest_int('sma_period', 10, 30),
         },
-        SentimentSMIStrategy: {
+        SentimentSMIStrategy_R: {
             'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
             'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
             'pfast': trial.suggest_int('pfast', 1, 10),
@@ -150,11 +147,11 @@ def optimize_strategy(strategy_cls, data_cls, n_trials=500):
 
 if __name__ == '__main__':
     tasks = [
-        (SentimentWPR2Strategy, MyPandasDataSentiment7),
-        (SentimentWPRStrategy, MyPandasDataSentiment6),
-        (SentimentMomentumStrategy1, MyPandasDataSentiment3),
-        (SentimentMomentumStrategy2, MyPandasDataSentiment4),
-        (SentimentSMIStrategy, MyPandasDataSentiment5)
+        (SentimentWPR2Strategy_R, MyPandasDataSentiment7_R),
+        (SentimentWPRStrategy_R, MyPandasDataSentiment6_R),
+        (SentimentMomentumStrategy_R, MyPandasDataSentiment3_R),
+        (SentimentMomentumStrategy4_R, MyPandasDataSentiment4_R),
+        (SentimentSMIStrategy_R, MyPandasDataSentiment5_R)
     ]
 
     results_list = []
