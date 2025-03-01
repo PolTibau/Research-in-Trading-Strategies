@@ -2,6 +2,7 @@ import pandas as pd
 import numpy as np
 import backtrader as bt
 import optuna
+import re
 import os
 import sys
 import logging
@@ -13,33 +14,92 @@ from S_SMI_optimized_strategy import MyPandasDataSentiment5_R, SentimentSMIStrat
 from S_WPR_EMA_optimized_strategy import MyPandasDataSentiment7_R, SentimentWPR2Strategy_R, WPR
 from S_WPR_RSI_optimized_strategy import MyPandasDataSentiment6_R, SentimentWPRStrategy_R, WPR
 
+class_name_map = {
+    'SentimentWPR2Strategy': 'SentimentWPR2Strategy_R',
+    'SentimentWPRStrategy': 'SentimentWPRStrategy_R',
+    'SentimentMomentumStrategy1': 'SentimentMomentumStrategy_R',
+    'SentimentMomentumStrategy2': 'SentimentMomentumStrategy4_R',
+    'SentimentSMIStrategy': 'SentimentSMIStrategy_R',
+    'MyPandasDataSentiment3': 'MyPandasDataSentiment3_R',
+    'MyPandasDataSentiment4': 'MyPandasDataSentiment4_R',
+    'MyPandasDataSentiment5': 'MyPandasDataSentiment5_R',
+    'MyPandasDataSentiment6': 'MyPandasDataSentiment6_R',
+    'MyPandasDataSentiment7': 'MyPandasDataSentiment7_R',
+}
 
-#Creem una funció per actualitzar els paràmetres de les estratègies
+
+def replace_params_in_line(line, best_params_dict, class_name_map):
+    """
+    Busca en una línea que define una tarea del tipo:
+      (csv, StrategyClass, DataClass, dict(param1=valor1, param2=valor2, ...)),
+    y reemplaza los valores de los parámetros si existen en best_params_dict.
+    """
+    # Se espera que la línea contenga algo como: dict( ... )
+    m = re.search(r'\(\s*[^,]+,\s*([^,]+),\s*[^,]+,\s*dict\s*\((.+?)\)\s*\)', line)
+    if m:
+        raw_strat = m.group(1).strip()
+        mapped_strat = class_name_map.get(raw_strat, raw_strat)
+        if mapped_strat in best_params_dict:
+            params_str = m.group(2)  # cadena con los parámetros dentro de dict(...)
+            def repl(match):
+                param = match.group(1)
+                value = match.group(2)
+                if param in best_params_dict[mapped_strat]:
+                    new_val = best_params_dict[mapped_strat][param]
+                    print(f"✅ Reemplazando {param}={value} -> {new_val} en {mapped_strat}")
+                    return f"{param}={new_val}"
+                else:
+                    print(f"⚠️ {param} no encontrado en {mapped_strat}. No se reemplaza.")
+                    return match.group(0)
+            # Se aplica el reemplazo a TODOS los parámetros encontrados en la cadena
+            new_params_str = re.sub(r'(\w+)\s*=\s*([^,)+]+)', repl, params_str)
+            # Reconstruir la línea: se reemplaza la parte del dict( ... ) por la versión modificada
+            new_line = re.sub(r'(dict\s*\().+?(\)\s*\))', r'\1' + new_params_str + r'\2', line)
+            return new_line
+        else:
+            print(f"⚠️ {mapped_strat} no tiene parámetros optimizados en best_params_dict")
+            return line
+    else:
+        return line
+
 def update_multistrategy(best_params_dict):
-    """Actualiza los parámetros en multistrategy.py con los valores óptimos encontrados."""
+    """
+    Actualiza multistrategy.py reemplazando los valores dentro de tasks = [ ... ]
+    con los valores optimizados de best_params_dict.
+    """
     file_path = 'multistrategy.py'
+
     with open(file_path, 'r', encoding='utf-8') as f:
         lines = f.readlines()
-    
-    new_lines = []
-    inside_params = False
 
+    print("\n🔍 DEBUG: Contenido de best_params_dict antes de actualizar multistrategy.py")
+    for strat, params in best_params_dict.items():
+        print(f"   {strat}: {params}")
+
+    new_lines = []
+    tasks_block = False
     for line in lines:
-        for strategy, params in best_params_dict.items():
-            if f'class {strategy}' in line:
-                inside_params = False  # Bandera para saber cuándo modificar
-            if inside_params and "(" in line:
-                param_name = line.strip().split('=')[0].strip("(')")
-                if param_name in params:
-                    line = f"        ('{param_name}', {params[param_name]}),\n"
-            if 'params = (' in line:
-                inside_params = True
-            if inside_params and ')' in line:
-                inside_params = False
+        if 'tasks = [' in line:
+            tasks_block = True
+
+        if tasks_block:
+            if '(' in line and 'dict(' in line:
+                line = replace_params_in_line(line, best_params_dict, class_name_map)
         new_lines.append(line)
-    
+        # Detecta el cierre del bloque de tareas (se asume que la línea contiene "]")
+        if tasks_block and ']' in line:
+            tasks_block = False
+
+    for l in new_lines:
+        if 'dict(' in l:
+            print(l.strip())
+
     with open(file_path, 'w', encoding='utf-8') as f:
         f.writelines(new_lines)
+        f.flush() 
+        os.fsync(f.fileno()) 
+
+
 
 # Evitem loggejar coses innecessàries durant l'optimització de paràmetres
 logging.getLogger('backtrader').setLevel(logging.WARNING)

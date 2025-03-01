@@ -4,6 +4,8 @@ import numpy as np
 import backtrader as bt
 from concurrent.futures import ProcessPoolExecutor, as_completed
 
+
+
 # --------------------------------------------------------------------
 # 1. Definir tus clases de datos personalizadas
 #    (copiamos sólo las que difieren si hacen falta)
@@ -1194,8 +1196,6 @@ def run_backtest(
     total_comm = getattr(final_strat, 'total_commission', 0)
 
     returns_analyzer   = final_strat.analyzers.returns.get_analysis()
-    sharpe_analyzer    = final_strat.analyzers.sharpe.get_analysis()
-    drawdown_analyzer  = final_strat.analyzers.drawdown.get_analysis()
     trades_analyzer    = final_strat.analyzers.trades.get_analysis()
 
     # Extraemos en variables cómodas
@@ -1230,90 +1230,13 @@ def run_backtest(
 # --------------------------------------------------------------------
 if __name__ == '__main__':
     # Preparamos las "tareas": (csv, clase estrategia, clase data, params)
+    arxiu = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
     tasks = [
-        (
-            r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv',
-            SentimentWPR2Strategy,
-            MyPandasDataSentiment7,
-            dict(  # parámetros que quieras para la estrategia 1
-                upper_threshold=56,
-                lower_threshold=35,
-                wpr_period=11,
-                ema_period=19,
-                wpr_os=-83,
-                wpr_ob=-7,
-                ema_th=48,
-                neutral_lower=37,
-                neutral_upper=38,
-                allow_long=True,
-                allow_short=True
-            )
-        ),
-        (
-            r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv',
-            SentimentWPRStrategy,
-            MyPandasDataSentiment6,
-            dict(
-                upper_threshold=46,
-                lower_threshold=34,
-                period=11,
-                wpr_os=-79,
-                wpr_ob=-23,
-                rsi_os=26,
-                rsi_ob=74,
-                neutral_lower=38,
-                neutral_upper=38,
-                allow_long=True,
-                allow_short=True
-            )
-        ),
-        (
-            r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv',
-            SentimentMomentumStrategy1,  # tu 3ª estrategia
-            MyPandasDataSentiment3,
-            dict(
-                upper_threshold=54,
-                lower_threshold=24,
-                neutral_lower=26,
-                neutral_upper=27,
-                momentum_days=2,
-                allow_long=True,
-                allow_short=True
-            )
-        ),
-        (
-            r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv',
-            SentimentMomentumStrategy2,  # tu 4ª estrategia (si es diferente)
-            MyPandasDataSentiment4,
-            dict(
-                upper_threshold=56,
-                lower_threshold=37,
-                cci_upper_threshold=87,
-                cci_lower_threshold=-90,
-                neutral_lower=39,
-                neutral_upper=40,
-                sma_period=24,
-                allow_long=True,
-                allow_short=True
-            )
-        ),
-        (
-            r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv',
-            SentimentSMIStrategy,  # tu 5ª estrategia
-            MyPandasDataSentiment5,
-            dict(
-                upper_threshold=53,
-                lower_threshold=27,
-                pfast=7,
-                pslow=8,
-                period=18,
-                smasig=4,
-                neutral_lower=41,
-                neutral_upper=41,
-                allow_long=True,
-                allow_short=True
-            )
-        ),
+        (arxiu, SentimentWPR2Strategy, MyPandasDataSentiment7, dict(upper_threshold=55, lower_threshold=43, wpr_period=16, ema_period=45, wpr_os=-80, wpr_ob=-1, ema_th=58, neutral_lower=40, neutral_upper=81, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPRStrategy, MyPandasDataSentiment6, dict(upper_threshold=72, lower_threshold=32, period=25, wpr_os=-77, wpr_ob=-18, rsi_os=36, rsi_ob=73, neutral_lower=26, neutral_upper=65, allow_long=True, allow_short=True)),
+        (arxiu, SentimentMomentumStrategy1, MyPandasDataSentiment3, dict(upper_threshold=56, lower_threshold=46, neutral_lower=50, neutral_upper=53, momentum_days=3, allow_long=True, allow_short=True)),
+        (arxiu, SentimentMomentumStrategy2, MyPandasDataSentiment4, dict(upper_threshold=64, lower_threshold=24, cci_upper_threshold=116, cci_lower_threshold=-136, neutral_lower=33, neutral_upper=73, sma_period=15, allow_long=True, allow_short=True)),
+        (arxiu, SentimentSMIStrategy, MyPandasDataSentiment5, dict(upper_threshold=59, lower_threshold=44, pfast=4, pslow=10, period=19, smasig=8, neutral_lower=30, neutral_upper=69, allow_long=True, allow_short=True)),
     ]
 
     # Lanzamos en paralelo
