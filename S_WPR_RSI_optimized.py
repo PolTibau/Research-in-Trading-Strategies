@@ -8,7 +8,7 @@ from S_WPR_RSI_optimized_strategy import MyPandasDataSentiment6_R, SentimentWPRS
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\GOOG.csv'
+fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -116,10 +116,10 @@ def objective(trial):
     period = trial.suggest_int('period', 10, 30)
 
     #oversold_threshold and overbought_threshold
-    wpr_os = trial.suggest_int('wpr_os', -100, -75)
-    wpr_ob = trial.suggest_int('wpr_ob', -25, 0)
-    rsi_os = trial.suggest_int('rsi_os', 25, 40)
-    rsi_ob = trial.suggest_int('rsi_ob', 60, 75)
+    wpr_os = trial.suggest_int('wpr_os', -100, -70)
+    wpr_ob = trial.suggest_int('wpr_ob', -30, 0)
+    rsi_os = trial.suggest_int('rsi_os', 0, 40)
+    rsi_ob = trial.suggest_int('rsi_ob', 60, 100)
 
     # Ejecutar el backtest
     final_val = run_backtest(up, low, wpr_os, wpr_ob, rsi_os, rsi_ob, period, nl, nu)

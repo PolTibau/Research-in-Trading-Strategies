@@ -1232,11 +1232,11 @@ if __name__ == '__main__':
     # Preparamos las "tareas": (csv, clase estrategia, clase data, params)
     arxiu = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
     tasks = [
-        (arxiu, SentimentWPR2Strategy, MyPandasDataSentiment7, dict(upper_threshold=55, lower_threshold=43, wpr_period=16, ema_period=45, wpr_os=-80, wpr_ob=-1, ema_th=58, neutral_lower=40, neutral_upper=81, allow_long=True, allow_short=True)),
-        (arxiu, SentimentWPRStrategy, MyPandasDataSentiment6, dict(upper_threshold=72, lower_threshold=32, period=25, wpr_os=-77, wpr_ob=-18, rsi_os=36, rsi_ob=73, neutral_lower=26, neutral_upper=65, allow_long=True, allow_short=True)),
-        (arxiu, SentimentMomentumStrategy1, MyPandasDataSentiment3, dict(upper_threshold=56, lower_threshold=46, neutral_lower=50, neutral_upper=53, momentum_days=3, allow_long=True, allow_short=True)),
-        (arxiu, SentimentMomentumStrategy2, MyPandasDataSentiment4, dict(upper_threshold=64, lower_threshold=24, cci_upper_threshold=116, cci_lower_threshold=-136, neutral_lower=33, neutral_upper=73, sma_period=15, allow_long=True, allow_short=True)),
-        (arxiu, SentimentSMIStrategy, MyPandasDataSentiment5, dict(upper_threshold=59, lower_threshold=44, pfast=4, pslow=10, period=19, smasig=8, neutral_lower=30, neutral_upper=69, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR2Strategy, MyPandasDataSentiment7, dict(upper_threshold=53, lower_threshold=29, wpr_period=13, ema_period=24, wpr_os=-81, wpr_ob=-25, ema_th=60, neutral_lower=23, neutral_upper=53, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPRStrategy, MyPandasDataSentiment6, dict(upper_threshold=80, lower_threshold=41, period=14, wpr_os=-76, wpr_ob=-5, rsi_os=28, rsi_ob=70, neutral_lower=36, neutral_upper=78, allow_long=True, allow_short=True)),
+        (arxiu, SentimentMomentumStrategy1, MyPandasDataSentiment3, dict(upper_threshold=60, lower_threshold=44, neutral_lower=53, neutral_upper=53, momentum_days=4, allow_long=True, allow_short=True)),
+        (arxiu, SentimentMomentumStrategy2, MyPandasDataSentiment4, dict(upper_threshold=59, lower_threshold=24, cci_upper_threshold=87, cci_lower_threshold=-83, neutral_lower=53, neutral_upper=53, sma_period=10, allow_long=True, allow_short=True)),
+        (arxiu, SentimentSMIStrategy, MyPandasDataSentiment5, dict(upper_threshold=53, lower_threshold=31, pfast=2, pslow=10, period=13, smasig=3, neutral_lower=53, neutral_upper=53, allow_long=True, allow_short=True)),
     ]
 
     # Lanzamos en paralelo

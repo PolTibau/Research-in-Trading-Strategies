@@ -200,7 +200,7 @@ def objective(trial, strategy_cls, data_cls):
     }
     return run_backtest(strategy_cls, data_cls, param_space[strategy_cls])
 
-def optimize_strategy(strategy_cls, data_cls, n_trials=500):
+def optimize_strategy(strategy_cls, data_cls, n_trials=700):
     study = optuna.create_study(direction='maximize')
     study.optimize(lambda trial: objective(trial, strategy_cls, data_cls), n_trials=n_trials)
     return strategy_cls.__name__, study.best_params, study.best_value
