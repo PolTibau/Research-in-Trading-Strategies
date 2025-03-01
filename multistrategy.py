@@ -11,7 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 #    (copiamos sólo las que difieren si hacen falta)
 # --------------------------------------------------------------------
 
-class MyPandasDataSentiment7(bt.feeds.PandasData):
+class MyPandasDataSentiment_WPR_EMA(bt.feeds.PandasData):
     """
     Feed de datos que añade la línea 'bbr'.
     Ajusta los campos/columnas según tu CSV.
@@ -27,7 +27,7 @@ class MyPandasDataSentiment7(bt.feeds.PandasData):
         ('bbr', 'BBr'),
     )
 
-class MyPandasDataSentiment6(bt.feeds.PandasData):
+class MyPandasDataSentiment_WPR_RSI(bt.feeds.PandasData):
     lines = ('bbr',)
     params = (
         ('datetime', None),
@@ -39,7 +39,7 @@ class MyPandasDataSentiment6(bt.feeds.PandasData):
         ('bbr', 'BBr'),
     )
 
-class MyPandasDataSentiment4(bt.feeds.PandasData):
+class MyPandasDataSentiment_CCI(bt.feeds.PandasData):
     lines = ('bbr',)
     params = (
         ('datetime', None),
@@ -51,7 +51,7 @@ class MyPandasDataSentiment4(bt.feeds.PandasData):
         ('bbr', 'BBr'),
     )
 
-class MyPandasDataSentiment3(bt.feeds.PandasData):
+class MyPandasDataSentiment_ROC(bt.feeds.PandasData):
     lines = ('bbr','daily_return',)
     params = (
         ('datetime', None),
@@ -65,7 +65,7 @@ class MyPandasDataSentiment3(bt.feeds.PandasData):
         ('daily_return', 'DailyReturn'),
     )
 
-class MyPandasDataSentiment5(bt.feeds.PandasData):
+class MyPandasDataSentiment_SMI(bt.feeds.PandasData):
     lines = ('bbr',)
     params = (
         ('datetime', None),
@@ -83,7 +83,7 @@ class MyPandasDataSentiment5(bt.feeds.PandasData):
 #    (copiamos tus 5 estrategias tal cual, solo resumidas aquí)
 # --------------------------------------------------------------------
 
-# -------- Estrategia 1 (SentimentWPR2Strategy) -------------
+# -------- Estrategia 1 (SentimentWPR_EMA_Strategy) -------------
 class WPR(bt.Indicator):
     lines = ('wpr',)
     params = (('period', 14),)
@@ -92,7 +92,7 @@ class WPR(bt.Indicator):
         highest_high = bt.indicators.Highest(self.data.high, period=self.p.period)
         lowest_low = bt.indicators.Lowest(self.data.low, period=self.p.period)
         self.lines.wpr = -100 * ((highest_high - self.data.close) / (highest_high - lowest_low))
-class SentimentWPR2Strategy(bt.Strategy):
+class SentimentWPR_EMA_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -293,8 +293,8 @@ class SentimentWPR2Strategy(bt.Strategy):
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 
-# -------- Estrategia 2 (SentimentWPRStrategy) -------------
-class SentimentWPRStrategy(bt.Strategy):
+# -------- Estrategia 2 (SentimentWPR_RSI_Strategy) -------------
+class SentimentWPR_RSI_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -496,8 +496,8 @@ class SentimentWPRStrategy(bt.Strategy):
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0  
 
-# -------- Estrategia 3 (SentimentMomentumStrategy) ---------
-class SentimentMomentumStrategy1(bt.Strategy):
+# -------- Estrategia 3 (SentimentROC_Strategy) ---------
+class SentimentROC_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -706,8 +706,8 @@ class SentimentMomentumStrategy1(bt.Strategy):
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 
-# -------- Estrategia 4 (SentimentMomentumStrategy) ---------
-class SentimentMomentumStrategy2(bt.Strategy):
+# -------- Estrategia 4 (SentimentROC_Strategy) ---------
+class SentimentCCI_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -904,7 +904,7 @@ class SentimentMomentumStrategy2(bt.Strategy):
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 
-# -------- Estrategia 5 (SentimentSMIStrategy) -------------
+# -------- Estrategia 5 (SentimentSMI_Strategy) -------------
 class SMI(bt.Indicator):
     """Cálculo del Stochastic Momentum Index (SMI) personalizado"""
     lines = ('smi', 'smasig')  # Definir las líneas del indicador
@@ -923,7 +923,7 @@ class SMI(bt.Indicator):
 
         # Línea de señal del SMI
         self.lines.smasig = bt.indicators.EMA(self.lines.smi, period=self.p.smasig)
-class SentimentSMIStrategy(bt.Strategy):
+class SentimentSMI_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -1133,7 +1133,7 @@ class SentimentSMIStrategy(bt.Strategy):
 
 def run_backtest(
     csv_path,               # ruta al CSV
-    strategy_cls,           # clase de estrategia (por ej. SentimentWPR2Strategy)
+    strategy_cls,           # clase de estrategia (por ej. SentimentWPR_EMA_Strategy)
     data_cls,               # clase del feed (MyPandasDataSentimentX)
     strategy_params=None,   # diccionario con parámetros para la estrategia
     commission=0.01,
@@ -1232,11 +1232,11 @@ if __name__ == '__main__':
     # Preparamos las "tareas": (csv, clase estrategia, clase data, params)
     arxiu = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
     tasks = [
-        (arxiu, SentimentWPR2Strategy, MyPandasDataSentiment7, dict(upper_threshold=53, lower_threshold=29, wpr_period=13, ema_period=24, wpr_os=-81, wpr_ob=-25, ema_th=60, neutral_lower=23, neutral_upper=53, allow_long=True, allow_short=True)),
-        (arxiu, SentimentWPRStrategy, MyPandasDataSentiment6, dict(upper_threshold=80, lower_threshold=41, period=14, wpr_os=-76, wpr_ob=-5, rsi_os=28, rsi_ob=70, neutral_lower=36, neutral_upper=78, allow_long=True, allow_short=True)),
-        (arxiu, SentimentMomentumStrategy1, MyPandasDataSentiment3, dict(upper_threshold=60, lower_threshold=44, neutral_lower=53, neutral_upper=53, momentum_days=4, allow_long=True, allow_short=True)),
-        (arxiu, SentimentMomentumStrategy2, MyPandasDataSentiment4, dict(upper_threshold=59, lower_threshold=24, cci_upper_threshold=87, cci_lower_threshold=-83, neutral_lower=53, neutral_upper=53, sma_period=10, allow_long=True, allow_short=True)),
-        (arxiu, SentimentSMIStrategy, MyPandasDataSentiment5, dict(upper_threshold=53, lower_threshold=31, pfast=2, pslow=10, period=13, smasig=3, neutral_lower=53, neutral_upper=53, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR_EMA_Strategy, MyPandasDataSentiment_WPR_EMA, dict(upper_threshold=53, lower_threshold=29, wpr_period=13, ema_period=24, wpr_os=-81, wpr_ob=-25, ema_th=60, neutral_lower=23, neutral_upper=53, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR_RSI_Strategy, MyPandasDataSentiment_WPR_RSI, dict(upper_threshold=80, lower_threshold=41, period=14, wpr_os=-76, wpr_ob=-5, rsi_os=28, rsi_ob=70, neutral_lower=36, neutral_upper=78, allow_long=True, allow_short=True)),
+        (arxiu, SentimentROC_Strategy, MyPandasDataSentiment_ROC, dict(upper_threshold=60, lower_threshold=44, neutral_lower=53, neutral_upper=53, momentum_days=4, allow_long=True, allow_short=True)),
+        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=59, lower_threshold=24, cci_upper_threshold=87, cci_lower_threshold=-83, neutral_lower=53, neutral_upper=53, sma_period=10, allow_long=True, allow_short=True)),
+        (arxiu, SentimentSMI_Strategy, MyPandasDataSentiment_SMI, dict(upper_threshold=53, lower_threshold=31, pfast=2, pslow=10, period=13, smasig=3, neutral_lower=53, neutral_upper=53, allow_long=True, allow_short=True)),
     ]
 
     # Lanzamos en paralelo

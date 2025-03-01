@@ -26,7 +26,7 @@ print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"])
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment6(bt.feeds.PandasData):
+class MyPandasDataSentiment_WPR_RSI(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -62,7 +62,7 @@ class WPR(bt.Indicator):
 # --------------------------------------------------------------------
 # 4. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentWPRStrategy(bt.Strategy):
+class SentimentWPR_RSI_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -270,7 +270,7 @@ class SentimentWPRStrategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentWPRStrategy,
+        SentimentWPR_RSI_Strategy,
         upper_threshold=68,
         lower_threshold=60,
         period=25,
@@ -285,7 +285,7 @@ if __name__ == '__main__':
     )
     
 
-    data = MyPandasDataSentiment6(dataname=df)
+    data = MyPandasDataSentiment_WPR_RSI(dataname=df)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)

@@ -28,7 +28,7 @@ print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"])
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment3(bt.feeds.PandasData):
+class MyPandasDataSentiment_ROC(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -50,7 +50,7 @@ class MyPandasDataSentiment3(bt.feeds.PandasData):
 # --------------------------------------------------------------------
 # 3. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentMomentumStrategy(bt.Strategy):
+class SentimentROC_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -265,7 +265,7 @@ class SentimentMomentumStrategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentMomentumStrategy,
+        SentimentROC_Strategy,
         upper_threshold=54,
         lower_threshold=24,
         neutral_lower=26,
@@ -275,7 +275,7 @@ if __name__ == '__main__':
         allow_short=True
     )
     
-    data = MyPandasDataSentiment3(dataname=df)
+    data = MyPandasDataSentiment_ROC(dataname=df)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)

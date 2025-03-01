@@ -26,7 +26,7 @@ print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"])
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment5(bt.feeds.PandasData):
+class MyPandasDataSentiment_SMI(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -68,7 +68,7 @@ class SMI(bt.Indicator):
 # --------------------------------------------------------------------
 # 4. Definir l'estratègia 
 # --------------------------------------------------------------------
-class SentimentSMIStrategy(bt.Strategy):
+class SentimentSMI_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -275,7 +275,7 @@ class SentimentSMIStrategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentSMIStrategy,
+        SentimentSMI_Strategy,
         upper_threshold=53,
         lower_threshold=27,
         pfast=7,
@@ -289,7 +289,7 @@ if __name__ == '__main__':
     )
     
 
-    data = MyPandasDataSentiment5(dataname=df)
+    data = MyPandasDataSentiment_SMI(dataname=df)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)

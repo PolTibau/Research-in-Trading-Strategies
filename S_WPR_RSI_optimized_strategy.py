@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 
-class MyPandasDataSentiment6_R(bt.feeds.PandasData):
+class MyPandasDataSentiment_WPR_RSI_R(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -39,7 +39,7 @@ class WPR(bt.Indicator):
 # --------------------------------------------------------------------
 # 3. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentWPRStrategy_R(bt.Strategy):
+class SentimentWPR_RSI_Strategy_R(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),

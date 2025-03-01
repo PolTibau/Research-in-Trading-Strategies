@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from S_CCI_optimized_strategy import MyPandasDataSentiment4_R, SentimentMomentumStrategy4_R
+from S_CCI_optimized_strategy import MyPandasDataSentiment_CCI_R, SentimentCCI_Strategy_R
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
@@ -56,12 +56,12 @@ def run_backtest(upper_threshold, lower_threshold, cci_upper_threshold, cci_lowe
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment4_R(dataname=train)
+    data = MyPandasDataSentiment_CCI_R(dataname=train)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentMomentumStrategy4_R,
+        SentimentCCI_Strategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
         cci_upper_threshold=cci_upper_threshold,

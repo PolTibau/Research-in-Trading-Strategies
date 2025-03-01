@@ -30,7 +30,7 @@ print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"])
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment3(bt.feeds.PandasData):
+class MyPandasDataSentiment_ROC(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou la línia 'bbr' 
     mapejada a la columna 'BBr' del nostre DataFrame.
@@ -133,7 +133,7 @@ if __name__ == '__main__':
         allow_short=True
     )
     
-    data = MyPandasDataSentiment3(dataname=df)
+    data = MyPandasDataSentiment_ROC(dataname=df)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.000)
