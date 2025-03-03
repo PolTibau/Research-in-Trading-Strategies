@@ -270,17 +270,7 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentWPR_EMA_Strategy,
-        upper_threshold=56,
-        lower_threshold=35,
-        wpr_period=11,
-        ema_period=19,
-        wpr_os=-83,
-        wpr_ob=-7,
-        ema_th=48,
-        neutral_lower=37,
-        neutral_upper=38,
-        allow_long=True,
-        allow_short=True
+        upper_threshold=53, lower_threshold=29, wpr_period=13, ema_period=24, wpr_os=-81, wpr_ob=-25, ema_th=60, neutral_lower=23, neutral_upper=53, allow_long=True, allow_short=True
     )
     
     data = MyPandasDataSentiment_WPR_EMA(dataname=df)

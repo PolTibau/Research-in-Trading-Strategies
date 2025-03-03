@@ -147,25 +147,60 @@ def run_backtest(strategy_cls, data_cls, strategy_params):
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)
 
-    with suppress_output():
-        cerebro.run(maxcpus=1)
+    try:
+        cerebro.run()
+        final_value = cerebro.broker.getvalue()
+    except Exception as e:
+        print(f"⚠️ Error en backtest de {strategy_cls.__name__}: {e}")
+        print(f"⚠️ Parámetros problemáticos: {strategy_params}")
+        return float('-1e9')  # Penalizar la optimización
 
-    return cerebro.broker.getvalue()
+    return final_value
 
 def objective(trial, strategy_cls, data_cls):
+    # Definir los límites iniciales
+    up = trial.suggest_int('upper_threshold', BBr_av, BBr_max)
+    low = trial.suggest_int('lower_threshold', BBr_min, up - 2)  # Asegurar que low < up - 2
+
+    if low >= up:
+        return float('-1e9')  # Rechazar combinaciones inválidas
+
+    # Definir neutral_lower con restricciones
+    nl_min = low + 1
+    nl_max = up - 2
+
+    if nl_min >= nl_max:
+        return float('-1e9')
+
+    neutral_lower = trial.suggest_int('neutral_lower', nl_min, nl_max)
+
+    # Definir neutral_upper con restricciones
+    nu_min = neutral_lower + 1
+    nu_max = up - 1
+
+    if nu_min >= nu_max:
+        return float('-1e9')
+
+    neutral_upper = trial.suggest_int('neutral_upper', nu_min, nu_max)
+
+    # Definir espacio de parámetros según la estrategia
     param_space = {
         SentimentWPR_RSI_Strategy_R: {
-            'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
-            'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
+            'upper_threshold': up,
+            'lower_threshold': low,
+            'neutral_lower': neutral_lower,
+            'neutral_upper': neutral_upper,
             'wpr_os': trial.suggest_int('wpr_os', -100, -75),
             'wpr_ob': trial.suggest_int('wpr_ob', -25, 0),
-            'rsi_os': trial.suggest_int('rsi_os', 25, 40),
-            'rsi_ob': trial.suggest_int('rsi_ob', 60, 75),
+            'rsi_os': trial.suggest_int('rsi_os', 0, 40),
+            'rsi_ob': trial.suggest_int('rsi_ob', 60, 100),
             'period': trial.suggest_int('period', 10, 30),
         },
         SentimentWPR_EMA_Strategy_R: {
-            'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
-            'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
+            'upper_threshold': up,
+            'lower_threshold': low,
+            'neutral_lower': neutral_lower,
+            'neutral_upper': neutral_upper,
             'wpr_os': trial.suggest_int('wpr_os', -100, -75),
             'wpr_ob': trial.suggest_int('wpr_ob', -25, 0),
             'wpr_period': trial.suggest_int('wpr_period', 10, 20),
@@ -173,34 +208,44 @@ def objective(trial, strategy_cls, data_cls):
             'ema_th': trial.suggest_int('ema_th', 40, 60),
         },
         SentimentROC_Strategy_R: {
-            'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
-            'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
-            'neutral_lower': trial.suggest_int('neutral_lower', BBr_min, BBr_av),
-            'neutral_upper': trial.suggest_int('neutral_upper', BBr_av, BBr_max),
+            'upper_threshold': up,
+            'lower_threshold': low,
+            'neutral_lower': neutral_lower,
+            'neutral_upper': neutral_upper,
             'momentum_days': trial.suggest_int('momentum_days', 1, 6),
         },
         SentimentCCI_Strategy_R: {
-            'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
-            'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
+            'upper_threshold': up,
+            'lower_threshold': low,
+            'neutral_lower': neutral_lower,
+            'neutral_upper': neutral_upper,
             'cci_upper_threshold': trial.suggest_int('cci_upper_threshold', 70, 140),
             'cci_lower_threshold': trial.suggest_int('cci_lower_threshold', -140, -70),
-            'neutral_lower': trial.suggest_int('neutral_lower', BBr_min, BBr_av),
-            'neutral_upper': trial.suggest_int('neutral_upper', BBr_av, BBr_max),
             'sma_period': trial.suggest_int('sma_period', 10, 30),
         },
         SentimentSMI_Strategy_R: {
-            'upper_threshold': trial.suggest_int('upper_threshold', BBr_av, BBr_max),
-            'lower_threshold': trial.suggest_int('lower_threshold', BBr_min, BBr_av),
+            'upper_threshold': up,
+            'lower_threshold': low,
+            'neutral_lower': neutral_lower,
+            'neutral_upper': neutral_upper,
             'pfast': trial.suggest_int('pfast', 1, 10),
             'pslow': trial.suggest_int('pslow', 10, 20),
             'smasig': trial.suggest_int('smasig', 3, 10),
-            'neutral_lower': trial.suggest_int('neutral_lower', BBr_min, BBr_av),
-            'neutral_upper': trial.suggest_int('neutral_upper', BBr_av, BBr_max),
         }
     }
-    return run_backtest(strategy_cls, data_cls, param_space[strategy_cls])
 
-def optimize_strategy(strategy_cls, data_cls, n_trials=700):
+    params = param_space[strategy_cls]
+
+    # Restricción específica para SentimentSMI_Strategy_R
+    if strategy_cls == SentimentSMI_Strategy_R:
+        if params['pslow'] < params['pfast']:
+            return float('-1e9')
+        if params['smasig'] > params['pslow']:
+            return float('-1e9')
+
+    return run_backtest(strategy_cls, data_cls, params)
+
+def optimize_strategy(strategy_cls, data_cls, n_trials=500):
     study = optuna.create_study(direction='maximize')
     study.optimize(lambda trial: objective(trial, strategy_cls, data_cls), n_trials=n_trials)
     return strategy_cls.__name__, study.best_params, study.best_value

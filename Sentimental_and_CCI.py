@@ -6,7 +6,7 @@ import backtrader as bt
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -45,7 +45,7 @@ class MyPandasDataSentiment_CCI(bt.feeds.PandasData):
 # --------------------------------------------------------------------
 # 3. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentROC_Strategy(bt.Strategy):
+class SentimentCCI_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
@@ -248,16 +248,8 @@ class SentimentROC_Strategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentROC_Strategy,
-        upper_threshold=56,
-        lower_threshold=37,
-        cci_upper_threshold=87,
-        cci_lower_threshold=-90,
-        neutral_lower=39,
-        neutral_upper=40,
-        sma_period=24,
-        allow_long=True,
-        allow_short=True
+        SentimentCCI_Strategy,
+        upper_threshold=53, lower_threshold=23, cci_upper_threshold=97, cci_lower_threshold=-140, neutral_lower=26, neutral_upper=29, sma_period=10, allow_long=True, allow_short=True
     )
     
     data = MyPandasDataSentiment_CCI(dataname=df)

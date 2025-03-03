@@ -6,7 +6,7 @@ import backtrader as bt
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -266,13 +266,7 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentROC_Strategy,
-        upper_threshold=54,
-        lower_threshold=24,
-        neutral_lower=26,
-        neutral_upper=27,
-        momentum_days=2,
-        allow_long=True,
-        allow_short=True
+        upper_threshold=54, lower_threshold=26, neutral_lower=34, neutral_upper=39, momentum_days=1, allow_long=True, allow_short=True
     )
     
     data = MyPandasDataSentiment_ROC(dataname=df)

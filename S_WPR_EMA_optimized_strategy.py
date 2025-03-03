@@ -98,10 +98,12 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
                 # En lugar de self.close()
                 if self.position.size > 0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_long', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_long', old_size=self.position.size)
                 elif self.position.size < 0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_short', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 self.current_invested_fraction = 0.0
             return
@@ -111,7 +113,8 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
-                close_order.addinfo(flag='closing_short', old_size=self.position.size)
+                if close_order is not None:
+                    close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 open_order = self.open_position_fraction(1.0, is_long=True)
                 open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
@@ -128,7 +131,8 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_long', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_long', old_size=self.position.size)                   
 
                     open_order = self.open_position_fraction(1.0, is_long=False)
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)

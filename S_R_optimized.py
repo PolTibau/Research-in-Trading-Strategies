@@ -8,7 +8,7 @@ from S_R_optimized_strategy import MyPandasDataSentiment_ROC_R, SentimentROC_Str
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -117,7 +117,7 @@ def objective(trial):
     return final_val
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=500)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=700)  # prueba 200 iteraciones
 
 print()
 print("Els millors paràmetres són:", study.best_params)

@@ -1149,13 +1149,8 @@ def run_backtest(
     # 1) Leemos el CSV
     df = pd.read_csv(csv_path)
     
-    # IMPORTANTE:
-    # Aquí podrías repetir lo que ya hacías: eliminar 'Unnamed: 0',
-    # set_index, calculo bbr, etc. O lo delegas a un script previo.
-    # Como ejemplo rápido (simplificado):
   # Eliminar la primera columna "Unnamed: 0" si apareix
     df.drop(df.columns[0], axis=1, inplace=True)
-
     # Aseguramos convertir la primera columna a datetime e index:
     df.set_index(df.columns[0], inplace=True)
     df.index = pd.to_datetime(df.index)
@@ -1165,7 +1160,7 @@ def run_backtest(
         df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhypePartscr"])
         df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
         df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
-
+    df["BBr"] = df["BBr"].fillna(50)
     df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 
     # 2) Preparamos Cerebro
@@ -1232,11 +1227,11 @@ if __name__ == '__main__':
     # Preparamos las "tareas": (csv, clase estrategia, clase data, params)
     arxiu = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
     tasks = [
-        (arxiu, SentimentWPR_EMA_Strategy, MyPandasDataSentiment_WPR_EMA, dict(upper_threshold=53, lower_threshold=29, wpr_period=13, ema_period=24, wpr_os=-81, wpr_ob=-25, ema_th=60, neutral_lower=23, neutral_upper=53, allow_long=True, allow_short=True)),
-        (arxiu, SentimentWPR_RSI_Strategy, MyPandasDataSentiment_WPR_RSI, dict(upper_threshold=80, lower_threshold=41, period=14, wpr_os=-76, wpr_ob=-5, rsi_os=28, rsi_ob=70, neutral_lower=36, neutral_upper=78, allow_long=True, allow_short=True)),
-        (arxiu, SentimentROC_Strategy, MyPandasDataSentiment_ROC, dict(upper_threshold=60, lower_threshold=44, neutral_lower=53, neutral_upper=53, momentum_days=4, allow_long=True, allow_short=True)),
-        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=59, lower_threshold=24, cci_upper_threshold=87, cci_lower_threshold=-83, neutral_lower=53, neutral_upper=53, sma_period=10, allow_long=True, allow_short=True)),
-        (arxiu, SentimentSMI_Strategy, MyPandasDataSentiment_SMI, dict(upper_threshold=53, lower_threshold=31, pfast=2, pslow=10, period=13, smasig=3, neutral_lower=53, neutral_upper=53, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR_EMA_Strategy, MyPandasDataSentiment_WPR_EMA, dict(upper_threshold=56, lower_threshold=23, wpr_period=10, ema_period=24, wpr_os=-75, wpr_ob=-17, ema_th=44, neutral_lower=30, neutral_upper=39, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR_RSI_Strategy, MyPandasDataSentiment_WPR_RSI, dict(upper_threshold=71, lower_threshold=44, period=19, wpr_os=-87, wpr_ob=-20, rsi_os=21, rsi_ob=67, neutral_lower=48, neutral_upper=53, allow_long=True, allow_short=True)),
+        (arxiu, SentimentROC_Strategy, MyPandasDataSentiment_ROC, dict(upper_threshold=54, lower_threshold=26, neutral_lower=34, neutral_upper=39, momentum_days=1, allow_long=True, allow_short=True)),
+        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=53, lower_threshold=23, cci_upper_threshold=97, cci_lower_threshold=-140, neutral_lower=26, neutral_upper=29, sma_period=10, allow_long=True, allow_short=True)),
+        (arxiu, SentimentSMI_Strategy, MyPandasDataSentiment_SMI, dict(upper_threshold=53, lower_threshold=29, pfast=2, pslow=12, period=24, smasig=3, neutral_lower=31, neutral_upper=33, allow_long=True, allow_short=True)),
     ]
 
     # Lanzamos en paralelo

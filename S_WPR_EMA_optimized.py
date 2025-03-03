@@ -141,7 +141,7 @@ def objective(trial):
 
 # Configurar Optuna con paralelización para optimización más rápida
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=700, n_jobs=4)  # Ejecuta en paralelo en 4 núcleos
+study.optimize(objective, n_trials=700)  # Ejecuta en paralelo en 4 núcleos
 
 # Mostrar los mejores parámetros encontrados
 print("\nEls millors paràmetres són:", study.best_params)
