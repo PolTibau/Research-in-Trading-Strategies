@@ -8,7 +8,7 @@ from S_WPR_EMA_optimized_strategy import MyPandasDataSentiment_WPR_EMA_R, Sentim
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
+fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\JPM.csv'
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix

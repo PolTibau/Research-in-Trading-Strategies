@@ -118,7 +118,7 @@ def suppress_output():
             sys.stdout = old_stdout 
 
 # Escollim l'stock amb el que aplicarem les estratègies
-csv_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
+csv_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\FB.csv'
 df = pd.read_csv(csv_path)
 
 df.drop(df.columns[0], axis=1, inplace=True)
@@ -178,7 +178,7 @@ def objective(trial, strategy_cls, data_cls):
     nu_min = neutral_lower + 1
     nu_max = up - 1
 
-    if nu_min >= nu_max:
+    if nu_min > nu_max:
         return float('-1e9')
 
     neutral_upper = trial.suggest_int('neutral_upper', nu_min, nu_max)
@@ -212,7 +212,7 @@ def objective(trial, strategy_cls, data_cls):
             'lower_threshold': low,
             'neutral_lower': neutral_lower,
             'neutral_upper': neutral_upper,
-            'momentum_days': trial.suggest_int('momentum_days', 1, 6),
+            'momentum_days': trial.suggest_int('momentum_days', 2, 6),
         },
         SentimentCCI_Strategy_R: {
             'upper_threshold': up,
@@ -242,10 +242,11 @@ def objective(trial, strategy_cls, data_cls):
             return float('-1e9')
         if params['smasig'] > params['pslow']:
             return float('-1e9')
+    
 
     return run_backtest(strategy_cls, data_cls, params)
 
-def optimize_strategy(strategy_cls, data_cls, n_trials=500):
+def optimize_strategy(strategy_cls, data_cls, n_trials=700):
     study = optuna.create_study(direction='maximize')
     study.optimize(lambda trial: objective(trial, strategy_cls, data_cls), n_trials=n_trials)
     return strategy_cls.__name__, study.best_params, study.best_value

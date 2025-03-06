@@ -6,7 +6,7 @@ import backtrader as bt
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
+fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\.csv'
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -270,7 +270,7 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentWPR_EMA_Strategy,
-        upper_threshold=53, lower_threshold=29, wpr_period=13, ema_period=24, wpr_os=-81, wpr_ob=-25, ema_th=60, neutral_lower=23, neutral_upper=53, allow_long=True, allow_short=True
+        upper_threshold=57, lower_threshold=33, wpr_period=20, ema_period=31, wpr_os=-77, wpr_ob=-11, ema_th=56, neutral_lower=47, neutral_upper=50, allow_long=True, allow_short=True
     )
     
     data = MyPandasDataSentiment_WPR_EMA(dataname=df)
