@@ -20,20 +20,6 @@ class MyPandasDataSentiment_WPR_EMA_R(bt.feeds.PandasData):
         ('bbr', 'BBr'),
     )
     
-# --------------------------------------------------------------------
-# 3. Definir el indicador Williams %R (WPR)
-# --------------------------------------------------------------------
-class WPR(bt.Indicator):
-    """Cálculo del Williams %R (WPR) personalizado"""
-    lines = ('wpr',)  # Definir la línea del indicador
-    params = (('period', 14),)  # Período ajustable
-
-    def __init__(self):
-        highest_high = bt.indicators.Highest(self.data.high, period=self.p.period)  # Máximo del periodo
-        lowest_low = bt.indicators.Lowest(self.data.low, period=self.p.period)  # Mínimo del periodo
-
-        # Fórmula del WPR
-        self.lines.wpr = -100 * ((highest_high - self.data.close) / (highest_high - lowest_low))
 
         
 # --------------------------------------------------------------------
@@ -44,10 +30,8 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
         ('upper_threshold', 54),
         ('lower_threshold', 24),
         ('wpr_period', 14),
-        ('ema_period', 14),
-        ('wpr_os', -80),
-        ('wpr_ob', -20),
-        ('ema_th', 50),
+        ('long_ema_period', 14),
+        ('short_ema_period', 14),
         ('neutral_lower', 26),
         ('neutral_upper', 27),
         ('allow_short', True),
@@ -56,8 +40,8 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
 
     def __init__(self):
         self.bbr = self.datas[0].bbr
-        self.wpr = WPR(self.datas[0], period=self.params.wpr_period)
-        self.ema = bt.indicators.EMA(period=self.params.ema_period)
+        self.long_ema = bt.indicators.EMA(period=self.params.long_ema_period)
+        self.short_ema = bt.indicators.EMA(period=self.params.short_ema_period)
         self.open_price = self.datas[0].open  # Precio de Open para entrar y salir
         self.initial_cash = self.broker.getvalue()
         self.current_invested_fraction = 0.0
@@ -66,7 +50,7 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
         self.trade_type = None
         self.commission_in_this_trade = 0.0
         self.total_trades = 0
-        self.total_commission = 0
+        self.total_commission = 0 
         self.last_date = self.data.datetime.date(-1)
 
     def open_position_fraction(self, fraction, is_long=True):
@@ -90,7 +74,6 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
 
     def next(self):
         bbr_now = self.bbr[0]
-        wpr_now = self.wpr[0]
 
         # Si el valor de BBr está en la zona neutral, se cierra la posición.
         if self.params.neutral_lower < bbr_now < self.params.neutral_upper:
@@ -109,7 +92,7 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
             return
 
         # Entrada LARGA (100% de la cartera) con momentum positivo
-        if bbr_now > self.params.upper_threshold and wpr_now < self.params.wpr_os and self.ema[0] > self.params.ema_th:
+        if bbr_now > self.params.upper_threshold and self.short_ema[0] > self.long_ema[0]:
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
@@ -117,16 +100,18 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
                     close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = 1.0
 
             elif self.current_invested_fraction == 0.0:
                 open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
-        elif bbr_now < self.params.lower_threshold and wpr_now > self.params.wpr_ob and self.ema[0] < self.params.ema_th:
+        elif bbr_now < self.params.lower_threshold and self.short_ema[0] < self.long_ema[0]:
             if self.params.allow_short:
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
@@ -135,11 +120,13 @@ class SentimentWPR_EMA_Strategy_R(bt.Strategy):
                         close_order.addinfo(flag='closing_long', old_size=self.position.size)                   
 
                     open_order = self.open_position_fraction(1.0, is_long=False)
-                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                    if open_order is not None:
+                        open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0
 
                 elif self.current_invested_fraction == 0.0:
                     open_order = self.open_position_fraction(1.0, is_long=False)
-                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                    if open_order is not None:
+                        open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 

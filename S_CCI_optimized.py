@@ -8,8 +8,8 @@ from S_CCI_optimized_strategy import MyPandasDataSentiment_CCI_R, SentimentCCI_S
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
-df = pd.read_csv(fitxer_csv)
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
 df.drop(df.columns[0], axis=1, inplace=True)
@@ -31,7 +31,7 @@ df["BBr"] = df["BBr"].fillna(50)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test
-train_size = int(len(df) * 0.25)
+train_size = int(len(df) * 0.7)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 print("Train:", train.shape, "Test:", test.shape)
@@ -46,8 +46,8 @@ BBr_max = int(df["BBr"].max())
 BBr_min = int(df["BBr"].min())
 BBr_av = int((df["BBr"].min()+df["BBr"].max())//2)
 
-possible_upper = range(BBr_av, BBr_max)
-possible_lower = range(BBr_min, BBr_av)       
+possible_upper = range(BBr_av, BBr_max-15)
+possible_lower = range(BBr_min+15, BBr_av)       
 possible_neutral_lower = range(BBr_av-15, BBr_av)
 possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 
@@ -75,7 +75,7 @@ def run_backtest(upper_threshold, lower_threshold, cci_upper_threshold, cci_lowe
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.01)
+    cerebro.broker.setcommission(commission=0.005)
 
     # 5. Run
     cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
@@ -111,13 +111,13 @@ def objective(trial):
     nu = trial.suggest_int('neutral_upper', nu_min, nu_max)
 
     # Momentum days
-    sma_period = trial.suggest_int('sma_period', 10, 30)
+    sma_period = trial.suggest_int('sma_period', 3, 20)
 
     #cci_up
-    cci_up = trial.suggest_int('cci_upper_threshold', 70, 140)
+    cci_up = trial.suggest_int('cci_upper_threshold', 70, 120)
 
     #cci_low
-    cci_low = trial.suggest_int('cci_lower_threshold', -140, -70)
+    cci_low = trial.suggest_int('cci_lower_threshold', -120, -70)
 
     # Ejecutar el backtest
     final_val = run_backtest(up, low, cci_up, cci_low, nl, nu, sma_period)
@@ -125,7 +125,7 @@ def objective(trial):
     return final_val
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=700)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=1000)  # prueba 200 iteraciones
 
 print()
 print("Els millors paràmetres són:", study.best_params)

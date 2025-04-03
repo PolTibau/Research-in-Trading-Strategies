@@ -118,12 +118,14 @@ class SentimentSMI_Strategy_R(bt.Strategy):
                     close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = 1.0
 
             elif self.current_invested_fraction == 0.0:
                 open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
@@ -136,11 +138,13 @@ class SentimentSMI_Strategy_R(bt.Strategy):
                         close_order.addinfo(flag='closing_long', old_size=self.position.size)
 
                     open_order = self.open_position_fraction(1.0, is_long=False)
-                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                    if open_order is not None:
+                        open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0
 
                 elif self.current_invested_fraction == 0.0:
                     open_order = self.open_position_fraction(1.0, is_long=False)
-                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                    if open_order is not None:
+                        open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 

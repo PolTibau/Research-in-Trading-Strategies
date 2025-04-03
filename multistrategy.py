@@ -1137,7 +1137,7 @@ def run_backtest(
     strategy_cls,           # clase de estrategia (por ej. SentimentWPR_EMA_Strategy)
     data_cls,               # clase del feed (MyPandasDataSentimentX)
     strategy_params=None,   # diccionario con parámetros para la estrategia
-    commission=0.01,
+    commission=0.001,
     initial_cash=100000.0,
 ):
     """
@@ -1226,13 +1226,13 @@ def run_backtest(
 # --------------------------------------------------------------------
 if __name__ == '__main__':
     # Preparamos las "tareas": (csv, clase estrategia, clase data, params)
-    arxiu = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\FB.csv'
+    arxiu = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\GOOG.csv'
     tasks = [
-        (arxiu, SentimentWPR_EMA_Strategy, MyPandasDataSentiment_WPR_EMA, dict(upper_threshold=52, lower_threshold=47, wpr_period=11, ema_period=39, wpr_os=-75, wpr_ob=0, ema_th=43, neutral_lower=49, neutral_upper=50, allow_long=True, allow_short=True)),
-        (arxiu, SentimentWPR_RSI_Strategy, MyPandasDataSentiment_WPR_RSI, dict(upper_threshold=62, lower_threshold=34, period=26, wpr_os=-92, wpr_ob=-5, rsi_os=18, rsi_ob=63, neutral_lower=46, neutral_upper=54, allow_long=True, allow_short=True)),
-        (arxiu, SentimentROC_Strategy, MyPandasDataSentiment_ROC, dict(upper_threshold=58, lower_threshold=53, neutral_lower=56, neutral_upper=57, momentum_days=6, allow_long=True, allow_short=True)),
-        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=50, lower_threshold=2, cci_upper_threshold=120, cci_lower_threshold=-125, neutral_lower=13, neutral_upper=22, sma_period=16, allow_long=True, allow_short=True)),
-        (arxiu, SentimentSMI_Strategy, MyPandasDataSentiment_SMI, dict(upper_threshold=72, lower_threshold=27, pfast=2, pslow=13, period=30, smasig=5, neutral_lower=43, neutral_upper=48, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR_EMA_Strategy, MyPandasDataSentiment_WPR_EMA, dict(upper_threshold=49, lower_threshold=44, wpr_period=14, ema_period=17, wpr_os=-87, wpr_ob=-2, ema_th=41, neutral_lower=46, neutral_upper=47, allow_long=True, allow_short=True)),
+        (arxiu, SentimentWPR_RSI_Strategy, MyPandasDataSentiment_WPR_RSI, dict(upper_threshold=68, lower_threshold=56, period=17, wpr_os=-99, wpr_ob=-19, rsi_os=28, rsi_ob=67, neutral_lower=62, neutral_upper=65, allow_long=True, allow_short=True)),
+        (arxiu, SentimentROC_Strategy, MyPandasDataSentiment_ROC, dict(upper_threshold=51, lower_threshold=8, neutral_lower=11, neutral_upper=13, momentum_days=5, allow_long=True, allow_short=True)),
+        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=44, lower_threshold=5, cci_upper_threshold=71, cci_lower_threshold=-139, neutral_lower=30, neutral_upper=35, sma_period=29, allow_long=True, allow_short=True)),
+        (arxiu, SentimentSMI_Strategy, MyPandasDataSentiment_SMI, dict(upper_threshold=43, lower_threshold=19, pfast=9, pslow=13, period=14, smasig=9, neutral_lower=33, neutral_upper=35, allow_long=True, allow_short=True)),
     ]
 
     # Lanzamos en paralelo

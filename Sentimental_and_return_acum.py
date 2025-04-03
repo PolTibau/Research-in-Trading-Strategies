@@ -2,12 +2,13 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
+from statistics import mean
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
-df = pd.read_csv(fitxer_csv)
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
 df.drop(df.columns[0], axis=1, inplace=True)
@@ -22,8 +23,12 @@ df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["find
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 
 # Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
-df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
+df["DailyReturn"] = df["Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
+
+train_size = int(len(df) * 0.7)
+train = df.iloc[:train_size]
+test = df.iloc[train_size:]
 
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
@@ -266,19 +271,59 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentROC_Strategy,
-        upper_threshold=54, lower_threshold=26, neutral_lower=34, neutral_upper=39, momentum_days=1, allow_long=True, allow_short=True
+        upper_threshold=67, lower_threshold=20, neutral_lower=22, neutral_upper=23, momentum_days=2, allow_long=True, allow_short=True
     )
     
-    data = MyPandasDataSentiment_ROC(dataname=df)
+    data = MyPandasDataSentiment_ROC(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.01)
+    cerebro.broker.setcommission(commission=0.005)
+
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
+    cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
     
     print('Valor inicial del Portafoli: %.2f' % cerebro.broker.getvalue())
     strategies = cerebro.run()
     strategy = strategies[0]
+
+    sharpe = strategy.analyzers.sharpe.get_analysis()
+    annual = strategy.analyzers.annual.get_analysis()
+    drawdown = strategy.analyzers.drawdown.get_analysis()
+    trades_analyzer = strategy.analyzers.trades.get_analysis()
+
     print('Valor final del Portafoli: %.2f' % cerebro.broker.getvalue())
     print(f"Nombre total d'operacions realitzades: {strategy.total_trades}")
     print(f'Total de comissions pagades: {strategy.total_commission:.2f}')
+
+    print('Sharpe Ratio (rf=2%):', f"{sharpe.get('sharperatio', float('nan')):.2f}")
+
+    # Win % -> se obtiene de trades_analyzer
+    closed_trades = trades_analyzer['total']['closed']
+    if closed_trades > 0:
+        won_trades = trades_analyzer['won']['total']
+        win_rate = won_trades / closed_trades * 100
+    else:
+        win_rate = 0
+    print(f"Win %: {win_rate:.2f}%")
+
+    # Individuales por año (opcional)
+    for year, ret in annual.items():
+        print(f"Annual Return {year}:", f"{ret:.2%}")
+
+    # Promedio global
+    annual_returns = list(annual.values())
+    if annual_returns:
+        avg_annual_return = mean(annual_returns)
+        excess_return = avg_annual_return - 0.02
+        print('Average Annual Return:', f"{avg_annual_return:.2%}")
+        print('Excess Return (vs 2% RF):', f"{excess_return:.2%}")
+
+
+    print('Max Drawdown:', f"{drawdown.max.drawdown:.2f}%")
+    print('Max Drawdown Duration (days):', drawdown.max.len)
+
+    print('Total Trades:', trades_analyzer.total.closed)
     
     cerebro.plot()

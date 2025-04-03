@@ -6,8 +6,8 @@ import backtrader as bt
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
-df = pd.read_csv(fitxer_csv)
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
 df.drop(df.columns[0], axis=1, inplace=True)
@@ -22,6 +22,10 @@ df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["find
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
+
+train_size = int(len(df) * 0.7)
+train = df.iloc[:train_size]
+test = df.iloc[train_size:]
 
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
@@ -276,23 +280,23 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentSMI_Strategy,
-        upper_threshold=53,
-        lower_threshold=27,
-        pfast=7,
-        pslow=8,
-        period=18,
-        smasig=4,
-        neutral_lower=41,
-        neutral_upper=41,
+        upper_threshold=71,
+        lower_threshold=3,
+        pfast=1,
+        pslow=6,
+        period=11,
+        smasig=3,
+        neutral_lower=6,
+        neutral_upper=7,
         allow_long=True,
         allow_short=True
     )
     
 
-    data = MyPandasDataSentiment_SMI(dataname=df)
+    data = MyPandasDataSentiment_SMI(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.01)
+    cerebro.broker.setcommission(commission=0.001)
 
     #mètriques de valor final del portafoli
     cerebro.addanalyzer(bt.analyzers.Returns, _name='returns')

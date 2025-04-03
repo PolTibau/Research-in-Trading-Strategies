@@ -11,7 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from S_CCI_optimized_strategy import MyPandasDataSentiment_CCI_R, SentimentCCI_Strategy_R
 from S_R_optimized_strategy import MyPandasDataSentiment_ROC_R, SentimentROC_Strategy_R
 from S_SMI_optimized_strategy import MyPandasDataSentiment_SMI_R, SentimentSMI_Strategy_R, SMI
-from S_WPR_EMA_optimized_strategy import MyPandasDataSentiment_WPR_EMA_R, SentimentWPR_EMA_Strategy_R, WPR
+from new.S_BI_EMA_optimized_strategy import MyPandasDataSentiment_WPR_EMA_R, SentimentWPR_EMA_Strategy_R, WPR
 from S_WPR_RSI_optimized_strategy import MyPandasDataSentiment_WPR_RSI_R, SentimentWPR_RSI_Strategy_R, WPR
 
 class_name_map = {
@@ -118,8 +118,8 @@ def suppress_output():
             sys.stdout = old_stdout 
 
 # Escollim l'stock amb el que aplicarem les estratègies
-csv_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\FB.csv'
-df = pd.read_csv(csv_path)
+parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL.parquet'
+df = pd.read_parquet(parquet_path)
 
 df.drop(df.columns[0], axis=1, inplace=True)
 df.set_index(df.columns[0], inplace=True)
@@ -128,10 +128,10 @@ df.index = pd.to_datetime(df.index)
 df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhypePartscr"])
 df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
-df["DailyReturn"] = df["Adj Close"].pct_change() * 100
+df["DailyReturn"] = df["Close"].pct_change() * 100
 df["BBr"] = df["BBr"].fillna(50)
 
-train_size = int(len(df) * 0.25)
+train_size = int(len(df) * 0.7)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 
@@ -145,7 +145,7 @@ def run_backtest(strategy_cls, data_cls, strategy_params):
     cerebro.adddata(data)
     cerebro.addstrategy(strategy_cls, **strategy_params)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.01)
+    cerebro.broker.setcommission(commission=0.001)
 
     try:
         cerebro.run()
@@ -246,7 +246,7 @@ def objective(trial, strategy_cls, data_cls):
 
     return run_backtest(strategy_cls, data_cls, params)
 
-def optimize_strategy(strategy_cls, data_cls, n_trials=700):
+def optimize_strategy(strategy_cls, data_cls, n_trials=1000):
     study = optuna.create_study(direction='maximize')
     study.optimize(lambda trial: objective(trial, strategy_cls, data_cls), n_trials=n_trials)
     return strategy_cls.__name__, study.best_params, study.best_value
