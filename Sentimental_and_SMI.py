@@ -280,14 +280,14 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentSMI_Strategy,
-        upper_threshold=71,
-        lower_threshold=3,
-        pfast=1,
-        pslow=6,
-        period=11,
-        smasig=3,
-        neutral_lower=6,
-        neutral_upper=7,
+        upper_threshold=60,
+        lower_threshold=18,
+        pfast=10,
+        pslow=11,
+        period=12,
+        smasig=10,
+        neutral_lower=20,
+        neutral_upper=21,
         allow_long=True,
         allow_short=True
     )

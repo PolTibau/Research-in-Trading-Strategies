@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from new.S_BI_EMA_optimized_strategy import MyPandasDataSentiment_WPR_EMA_R, SentimentWPR_EMA_Strategy_R
+from S_BI_EMA_optimized_strategy import MyPandasDataSentiment_BI_EMA_R, SentimentBI_EMA_Strategy_R
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
@@ -54,24 +54,21 @@ possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 #mean_price = df['close'].mean()
 
 
-def run_backtest(upper_threshold, lower_threshold, wpr_os, wpr_ob, wpr_period, ema_period, ema_th, neutral_lower, neutral_upper):
+def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_period, neutral_lower, neutral_upper):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment_WPR_EMA_R(dataname=train)
+    data = MyPandasDataSentiment_BI_EMA_R(dataname=train)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentWPR_EMA_Strategy_R,
+        SentimentBI_EMA_Strategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
-        wpr_os=wpr_os,
-        wpr_ob=wpr_ob,
-        wpr_period=wpr_period,
-        ema_period=ema_period,
-        ema_th=ema_th,
+        long_ema_period=long_ema_period,
+        short_ema_period=short_ema_period,
         neutral_lower=neutral_lower,
         neutral_upper=neutral_upper,
         allow_long=True,
@@ -81,14 +78,20 @@ def run_backtest(upper_threshold, lower_threshold, wpr_os, wpr_ob, wpr_period, e
     # 4. Broker
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.001)
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+
 
     # 5. Run
-    cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
+    results = cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
+    strategy = results[0]
 
     # 6. Valor final
     final_value = cerebro.broker.getvalue()
+    trades_analyzer = strategy.analyzers.trades.get_analysis()
 
-    return final_value
+    total_trades = trades_analyzer.total.get('closed', 0)
+
+    return final_value, total_trades
 
 # --------------------------------------------------------------------
 def objective(trial):
@@ -118,22 +121,25 @@ def objective(trial):
     nu = trial.suggest_int('neutral_upper', nu_min, nu_max)
 
     # Sugerencias para otros parámetros
-    wpr_os = trial.suggest_int('wpr_os', -100, -65)
-    wpr_ob = trial.suggest_int('wpr_ob', -35, 0)
-    wpr_period = trial.suggest_int('wpr_period', 3, 20)
 
-    ema_period = trial.suggest_int('ema_period', 3, 20)
-    ema_th = trial.suggest_int('ema_th', 35, 65)
-
+    long_ema_period = trial.suggest_int('long_ema_period', 20, 50)
+    short_ema_period = trial.suggest_int('short_ema_period', 5, 15)
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, wpr_os, wpr_ob, wpr_period, ema_period, ema_th, nl, nu)
+    final_val, total_trades = run_backtest(up, low, long_ema_period, short_ema_period, nl, nu)
 
+        # Penalización: si hay pocas operaciones, reducimos el score
+    if total_trades < 10:
+        penalty = 0.5  # puedes ajustar este valor
+    elif total_trades < 20:
+        penalty = 0.9
+    else:
+        penalty = 1.0
 
-    return final_val
+    return final_val * penalty
 
 # Configurar Optuna con paralelización para optimización más rápida
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=2000)  # Ejecuta en paralelo en 4 núcleos
+study.optimize(objective, n_trials=200)  # Ejecuta en paralelo en 4 núcleos
 
 # Mostrar los mejores parámetros encontrados
 print("\nEls millors paràmetres són:", study.best_params)

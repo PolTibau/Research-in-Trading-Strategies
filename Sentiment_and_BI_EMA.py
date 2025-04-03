@@ -31,7 +31,7 @@ test = df.iloc[train_size:]
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment_WPR_EMA(bt.feeds.PandasData):
+class MyPandasDataSentiment_BI_EMA(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -47,35 +47,17 @@ class MyPandasDataSentiment_WPR_EMA(bt.feeds.PandasData):
         ('bbr', 'BBr'),
     )
 
-# --------------------------------------------------------------------
-# 3. Definir el indicador Williams %R (WPR)
-# --------------------------------------------------------------------
-class WPR(bt.Indicator):
-    """Cálculo del Williams %R (WPR) personalizado"""
-    lines = ('wpr',)  # Definir la línea del indicador
-    params = (('period', 14),)  # Período ajustable
-
-    def __init__(self):
-        highest_high = bt.indicators.Highest(self.data.high, period=self.p.period)  # Máximo del periodo
-        lowest_low = bt.indicators.Lowest(self.data.low, period=self.p.period)  # Mínimo del periodo
-
-        # Fórmula del WPR
-        self.lines.wpr = -100 * ((highest_high - self.data.close) / (highest_high - lowest_low))
-
 
 
 # --------------------------------------------------------------------
 # 4. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentWPR_EMA_Strategy(bt.Strategy):
+class SentimentBI_EMA_Strategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
-        ('wpr_period', 14),
-        ('ema_period', 30),
-        ('wpr_os', -80),
-        ('wpr_ob', -20),
-        ('ema_th', 50),
+        ('long_ema_period', 30),
+        ('short_ema_period', 14),
         ('neutral_lower', 26),
         ('neutral_upper', 27),
         ('allow_short', True),
@@ -84,8 +66,9 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
 
     def __init__(self):
         self.bbr = self.datas[0].bbr
-        self.wpr = WPR(self.datas[0], period=self.params.wpr_period)
-        self.ema = bt.indicators.EMA(period=self.params.ema_period)
+        self.long_ema = bt.indicators.EMA(period=self.params.long_ema_period)
+        self.short_ema = bt.indicators.EMA(period=self.params.short_ema_period)
+        self.ema_crossover = bt.ind.CrossOver(self.short_ema, self.long_ema)
         self.open_price = self.datas[0].open  # Precio de Open para entrar y salir
         self.initial_cash = self.broker.getvalue()
         self.current_invested_fraction = 0.0
@@ -101,12 +84,11 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Completed]:
             trade_bbr = self.bbr[-1]  # BBr del día de la operación
-            trade_wpr = self.wpr[-1]  # WPR del día de la operación
             current_cash = self.broker.getvalue()  # Valor del portafoli després de l'operació
             flag = order.info.get('flag')
 
             if flag == 'opening_long':
-                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN LLARG* - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || WPR: {trade_wpr} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
+                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN LLARG* - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
                 self.entry_price = order.executed.price
                 self.entry_date = self.datas[0].datetime.date(0)
                 self.trade_type = "LLARG"
@@ -114,7 +96,7 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
                 self.open_commission = order.executed.comm
 
             elif flag == 'opening_short':
-                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN CURT** - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || WPR: {trade_wpr} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
+                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN CURT** - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
                 self.entry_price = order.executed.price
                 self.entry_date = self.datas[0].datetime.date(0)
                 self.trade_type = "CURT"
@@ -210,7 +192,6 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
     def next(self):
         #comprem si el SMI creua per sobre de la linia de senyal
         bbr_now = self.bbr[0]
-        wpr_now = self.wpr[0]
         current_date = self.data.datetime.date(0)
 
         if current_date == self.last_date:
@@ -236,7 +217,7 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
             return
 
         # Entrada LARGA (100% de la cartera) i WPR < -80 (possible sobrevenda)
-        if bbr_now > self.params.upper_threshold and wpr_now < self.params.wpr_os and self.ema[0] > self.params.ema_th:
+        if bbr_now > self.params.upper_threshold and self.ema_crossover[0] == 1:
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
@@ -252,7 +233,7 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
-        elif bbr_now < self.params.lower_threshold and wpr_now > self.params.wpr_ob and self.ema[0] < self.params.ema_th:
+        elif bbr_now < self.params.lower_threshold and self.ema_crossover[0] == -1:
             if self.params.allow_short:
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
@@ -274,11 +255,11 @@ class SentimentWPR_EMA_Strategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentWPR_EMA_Strategy,
-        upper_threshold=50, lower_threshold=32, wpr_period=4, ema_period=5, wpr_os=-66, wpr_ob=-31, ema_th=38, neutral_lower=22, neutral_upper=23, allow_long=True, allow_short=True
+        SentimentBI_EMA_Strategy,
+        upper_threshold=45, lower_threshold=20, neutral_lower=27, neutral_upper=28, long_ema_period=50, short_ema_period=5, allow_long=True, allow_short=True
     )
     
-    data = MyPandasDataSentiment_WPR_EMA(dataname=test)
+    data = MyPandasDataSentiment_BI_EMA(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.001)

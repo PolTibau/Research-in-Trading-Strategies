@@ -11,11 +11,11 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 from S_CCI_optimized_strategy import MyPandasDataSentiment_CCI_R, SentimentCCI_Strategy_R
 from S_R_optimized_strategy import MyPandasDataSentiment_ROC_R, SentimentROC_Strategy_R
 from S_SMI_optimized_strategy import MyPandasDataSentiment_SMI_R, SentimentSMI_Strategy_R, SMI
-from new.S_BI_EMA_optimized_strategy import MyPandasDataSentiment_WPR_EMA_R, SentimentWPR_EMA_Strategy_R, WPR
+from new.S_BI_EMA_optimized_strategy import MyPandasDataSentiment_BI_EMA_R, SentimentBI_EMA_Strategy_R, WPR
 from S_WPR_RSI_optimized_strategy import MyPandasDataSentiment_WPR_RSI_R, SentimentWPR_RSI_Strategy_R, WPR
 
 class_name_map = {
-    'SentimentWPR_EMA_Strategy': 'SentimentWPR_EMA_Strategy_R',
+    'SentimentWPR_EMA_Strategy': 'SentimentBI_EMA_Strategy_R',
     'SentimentWPR_RSI_Strategy': 'SentimentWPR_RSI_Strategy_R',
     'SentimentROC_Strategy': 'SentimentROC_Strategy_R',
     'SentimentCCI_Strategy': 'SentimentCCI_Strategy_R',
@@ -24,7 +24,7 @@ class_name_map = {
     'MyPandasDataSentiment_CCI': 'MyPandasDataSentiment_CCI_R',
     'MyPandasDataSentiment_SMI': 'MyPandasDataSentiment_SMI_R',
     'MyPandasDataSentiment_WPR_RSI': 'MyPandasDataSentiment_WPR_RSI_R',
-    'MyPandasDataSentiment_WPR_EMA': 'MyPandasDataSentiment_WPR_EMA_R',
+    'MyPandasDataSentiment_WPR_EMA': 'MyPandasDataSentiment_BI_EMA_R',
 }
 
 
@@ -196,7 +196,7 @@ def objective(trial, strategy_cls, data_cls):
             'rsi_ob': trial.suggest_int('rsi_ob', 60, 100),
             'period': trial.suggest_int('period', 10, 30),
         },
-        SentimentWPR_EMA_Strategy_R: {
+        SentimentBI_EMA_Strategy_R: {
             'upper_threshold': up,
             'lower_threshold': low,
             'neutral_lower': neutral_lower,
@@ -253,7 +253,7 @@ def optimize_strategy(strategy_cls, data_cls, n_trials=1000):
 
 if __name__ == '__main__':
     tasks = [
-        (SentimentWPR_EMA_Strategy_R, MyPandasDataSentiment_WPR_EMA_R),
+        (SentimentBI_EMA_Strategy_R, MyPandasDataSentiment_BI_EMA_R),
         (SentimentWPR_RSI_Strategy_R, MyPandasDataSentiment_WPR_RSI_R),
         (SentimentROC_Strategy_R, MyPandasDataSentiment_ROC_R),
         (SentimentCCI_Strategy_R, MyPandasDataSentiment_CCI_R),
