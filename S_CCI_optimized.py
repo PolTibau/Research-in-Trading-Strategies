@@ -8,7 +8,7 @@ from S_CCI_optimized_strategy import MyPandasDataSentiment_CCI_R, SentimentCCI_S
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -24,7 +24,7 @@ df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["find
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 
 # Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
-df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
+df["DailyReturn"] = df["Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
 df["BBr"] = df["BBr"].fillna(50)
@@ -89,7 +89,7 @@ def run_backtest(upper_threshold, lower_threshold, cci_upper_threshold, cci_lowe
 def objective(trial):
     # Definir los límites de los parámetros correctamente
     up = trial.suggest_int('upper_threshold', BBr_av, BBr_max)
-    low = trial.suggest_int('lower_threshold', BBr_min, up - 2)  # Asegurar que low < up - 2
+    low = trial.suggest_int('lower_threshold', BBr_min, up - 15)  # Asegurar que low < up - 2
 
     if low >= up:
         return float('-1e9')  # Valor muy bajo para descartar este conjunto de parámetros
@@ -125,7 +125,7 @@ def objective(trial):
     return final_val
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=1000)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=2000)  # prueba 200 iteraciones
 
 print()
 print("Els millors paràmetres són:", study.best_params)

@@ -8,7 +8,7 @@ from S_BI_EMA_optimized_strategy import MyPandasDataSentiment_BI_EMA_R, Sentimen
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -54,7 +54,7 @@ possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 #mean_price = df['close'].mean()
 
 
-def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_period, neutral_lower, neutral_upper):
+def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_period, ema_margin_pct, neutral_lower, neutral_upper):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
@@ -69,6 +69,7 @@ def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_pe
         lower_threshold=lower_threshold,
         long_ema_period=long_ema_period,
         short_ema_period=short_ema_period,
+        ema_margin_pct=ema_margin_pct,
         neutral_lower=neutral_lower,
         neutral_upper=neutral_upper,
         allow_long=True,
@@ -77,7 +78,7 @@ def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_pe
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.001)
+    cerebro.broker.setcommission(commission=0.005)
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
 
@@ -96,8 +97,8 @@ def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_pe
 # --------------------------------------------------------------------
 def objective(trial):
     # Definir los límites de los parámetros correctamente
-    up = trial.suggest_int('upper_threshold', BBr_av, BBr_max-10)
-    low = trial.suggest_int('lower_threshold', BBr_min+10, up - 1)  # Asegurar que low < up - 2
+    up = trial.suggest_int('upper_threshold', BBr_av, BBr_max)
+    low = trial.suggest_int('lower_threshold', BBr_min, up - 1)  # Asegurar que low < up - 2
 
     # Verificación temprana para descartar combinaciones inválidas
     if low >= up:
@@ -123,15 +124,18 @@ def objective(trial):
     # Sugerencias para otros parámetros
 
     long_ema_period = trial.suggest_int('long_ema_period', 20, 50)
-    short_ema_period = trial.suggest_int('short_ema_period', 5, 15)
+    short_ema_period = trial.suggest_int('short_ema_period', 3, 19)
+    ema_margin_pct = trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001)  # 1% a 5%
     # Ejecutar el backtest
-    final_val, total_trades = run_backtest(up, low, long_ema_period, short_ema_period, nl, nu)
+    final_val, total_trades = run_backtest(up, low, long_ema_period, short_ema_period, ema_margin_pct, nl, nu)
 
         # Penalización: si hay pocas operaciones, reducimos el score
     if total_trades < 10:
-        penalty = 0.5  # puedes ajustar este valor
+        penalty = 0.1
+    elif total_trades < 15:
+        penalty = 0.3
     elif total_trades < 20:
-        penalty = 0.9
+        penalty = 0.5  # puedes ajustar este valor
     else:
         penalty = 1.0
 
@@ -139,7 +143,7 @@ def objective(trial):
 
 # Configurar Optuna con paralelización para optimización más rápida
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=200)  # Ejecuta en paralelo en 4 núcleos
+study.optimize(objective, n_trials=2000)  # Ejecuta en paralelo en 4 núcleos
 
 # Mostrar los mejores parámetros encontrados
 print("\nEls millors paràmetres són:", study.best_params)

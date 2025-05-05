@@ -32,6 +32,7 @@ class SentimentBI_EMA_Strategy_R(bt.Strategy):
         ('wpr_period', 14),
         ('long_ema_period', 14),
         ('short_ema_period', 14),
+        ('ema_margin_pct', 0.01),  # 1%
         ('neutral_lower', 26),
         ('neutral_upper', 27),
         ('allow_short', True),
@@ -74,6 +75,11 @@ class SentimentBI_EMA_Strategy_R(bt.Strategy):
 
     def next(self):
         bbr_now = self.bbr[0]
+        ema_gap_long = self.short_ema[0] - self.long_ema[0]
+        ema_margin_long = self.long_ema[0] * self.params.ema_margin_pct
+
+        ema_gap_short = self.long_ema[0] - self.short_ema[0]
+        ema_margin_short = self.long_ema[0] * self.params.ema_margin_pct
 
         # Si el valor de BBr está en la zona neutral, se cierra la posición.
         if self.params.neutral_lower < bbr_now < self.params.neutral_upper:
@@ -92,7 +98,7 @@ class SentimentBI_EMA_Strategy_R(bt.Strategy):
             return
 
         # Entrada LARGA (100% de la cartera) con momentum positivo
-        if bbr_now > self.params.upper_threshold and self.short_ema[0] > self.long_ema[0]:
+        if bbr_now > self.params.upper_threshold and ema_gap_long > ema_margin_long:
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
@@ -111,7 +117,7 @@ class SentimentBI_EMA_Strategy_R(bt.Strategy):
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
-        elif bbr_now < self.params.lower_threshold and self.short_ema[0] < self.long_ema[0]:
+        elif bbr_now < self.params.lower_threshold and ema_gap_short > ema_margin_short:
             if self.params.allow_short:
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:

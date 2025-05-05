@@ -8,8 +8,8 @@ from S_WPR_RSI_optimized_strategy import MyPandasDataSentiment_WPR_RSI_R, Sentim
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
-df = pd.read_csv(fitxer_csv)
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
+df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
 df.drop(df.columns[0], axis=1, inplace=True)
@@ -24,14 +24,14 @@ df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["find
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 
 # Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
-df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
+df["DailyReturn"] = df["Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
 df["BBr"] = df["BBr"].fillna(50)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test
-train_size = int(len(df) * 0.25)
+train_size = int(len(df) * 0.7)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 print("Train:", train.shape, "Test:", test.shape)
@@ -77,15 +77,21 @@ def run_backtest(upper_threshold, lower_threshold, wpr_os, wpr_ob, rsi_os, rsi_o
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.01)
+    cerebro.broker.setcommission(commission=0.003)
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+
 
     # 5. Run
-    cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
+    results = cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
+    strategy = results[0]
 
     # 6. Valor final
     final_value = cerebro.broker.getvalue()
+    trades_analyzer = strategy.analyzers.trades.get_analysis()
 
-    return final_value
+    total_trades = trades_analyzer.total.get('closed', 0)
+
+    return final_value, total_trades
 
 # --------------------------------------------------------------------
 def objective(trial):
@@ -122,12 +128,21 @@ def objective(trial):
     rsi_ob = trial.suggest_int('rsi_ob', 60, 100)
 
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, wpr_os, wpr_ob, rsi_os, rsi_ob, period, nl, nu)
+    final_val, total_trades = run_backtest(up, low, wpr_os, wpr_ob, rsi_os, rsi_ob, period, nl, nu)
     
-    return final_val
+        # Penalización: si hay pocas operaciones, reducimos el score
+    # if total_trades < 10:
+    #     penalty = 0.05  # puedes ajustar este valor
+    # elif total_trades < 20:
+    #     penalty = 0.4
+    # else:
+    #     penalty = 1.0
+    penalty = 1.0
+
+    return final_val * penalty
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=700)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=2000)  # prueba 200 iteraciones
 
 print()
 print("Els millors paràmetres són:", study.best_params)

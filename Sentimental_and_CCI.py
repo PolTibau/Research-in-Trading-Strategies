@@ -7,7 +7,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -206,37 +206,24 @@ class SentimentCCI_Strategy(bt.Strategy):
                 # En lugar de self.close()
                 if self.position.size > 0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_long', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_long', old_size=self.position.size)
                 elif self.position.size < 0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_short', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 self.current_invested_fraction = 0.0
             return
 
-        # Entrada LARGA (100% de la cartera) con momentum positivo
-        if bbr_now > self.params.upper_threshold and self.params.cci_upper_threshold < cci_now:
-            # Si no estamos ya 100% largos
-            if self.current_invested_fraction == -1.0:
-                close_order = self.close()
-                close_order.addinfo(flag='closing_short', old_size=self.position.size)
-
-                open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
-                self.current_invested_fraction = 1.0
-
-            elif self.current_invested_fraction == 0.0:
-                open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
-                self.current_invested_fraction = 1.0
-
-        # Entrada CORTA (100% de la cartera) con momentum negativo
-        elif bbr_now < self.params.lower_threshold and self.params.cci_lower_threshold > cci_now:
+                # Entrada CORTA (100% de la cartera) con momentum negativo
+        if bbr_now < self.params.lower_threshold and self.params.cci_lower_threshold > cci_now:
             if self.params.allow_short:
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_long', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_long', old_size=self.position.size)
 
                     open_order = self.open_position_fraction(1.0, is_long=False)
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
@@ -247,6 +234,26 @@ class SentimentCCI_Strategy(bt.Strategy):
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 
+        # Entrada LARGA (100% de la cartera) con momentum positivo
+        elif bbr_now > self.params.upper_threshold and self.params.cci_upper_threshold < cci_now:
+            # Si no estamos ya 100% largos
+            if self.current_invested_fraction == -1.0:
+                close_order = self.close()
+                close_order.addinfo(flag='closing_short', old_size=self.position.size)
+
+                open_order = self.open_position_fraction(1.0, is_long=True)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                self.current_invested_fraction = 1.0
+
+            elif self.current_invested_fraction == 0.0:
+                open_order = self.open_position_fraction(1.0, is_long=True)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                self.current_invested_fraction = 1.0
+
+
+
 # --------------------------------------------------------------------
 # 4. Configurar i executar Backtrader
 # --------------------------------------------------------------------
@@ -254,13 +261,13 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentCCI_Strategy,
-        upper_threshold=55, lower_threshold=14, cci_upper_threshold=78, cci_lower_threshold=-87, neutral_lower=22, neutral_upper=23, sma_period=17, allow_long=True, allow_short=True
+        upper_threshold=55, lower_threshold=12, cci_upper_threshold=71, cci_lower_threshold=-118, neutral_lower=14, neutral_upper=15, sma_period=3, allow_long=True, allow_short=True
     )
     
     data = MyPandasDataSentiment_CCI(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.001)
+    cerebro.broker.setcommission(commission=0.005)
     
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')

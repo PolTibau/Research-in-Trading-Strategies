@@ -7,7 +7,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -223,10 +223,12 @@ class SentimentROC_Strategy(bt.Strategy):
                 # En lugar de self.close()
                 if self.position.size > 0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_long', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_long', old_size=self.position.size)
                 elif self.position.size < 0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_short', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 self.current_invested_fraction = 0.0
             return
@@ -236,15 +238,18 @@ class SentimentROC_Strategy(bt.Strategy):
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
-                close_order.addinfo(flag='closing_short', old_size=self.position.size)
+                if close_order is not None:
+                    close_order.addinfo(flag='closing_short', old_size=self.position.size)
 
                 open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = 1.0
 
             elif self.current_invested_fraction == 0.0:
                 open_order = self.open_position_fraction(1.0, is_long=True)
-                open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
@@ -253,15 +258,18 @@ class SentimentROC_Strategy(bt.Strategy):
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
                     close_order = self.close()
-                    close_order.addinfo(flag='closing_long', old_size=self.position.size)
+                    if close_order is not None:
+                        close_order.addinfo(flag='closing_long', old_size=self.position.size)
 
                     open_order = self.open_position_fraction(1.0, is_long=False)
-                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                    if open_order is not None:
+                        open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0
 
                 elif self.current_invested_fraction == 0.0:
                     open_order = self.open_position_fraction(1.0, is_long=False)
-                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                    if open_order is not None:
+                        open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                     self.current_invested_fraction = -1.0   
 
 # --------------------------------------------------------------------
@@ -271,7 +279,7 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentROC_Strategy,
-        upper_threshold=67, lower_threshold=20, neutral_lower=22, neutral_upper=23, momentum_days=2, allow_long=True, allow_short=True
+        upper_threshold=88, lower_threshold=40, neutral_lower=76, neutral_upper=78, momentum_days=5, allow_long=True, allow_short=True
     )
     
     data = MyPandasDataSentiment_ROC(dataname=test)
