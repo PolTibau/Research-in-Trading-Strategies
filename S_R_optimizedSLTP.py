@@ -75,7 +75,7 @@ def run_backtest(upper_threshold, lower_threshold, stop_up, stop_down, momentum_
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.001)
+    cerebro.broker.setcommission(commission=0.003)
 
     # 5. Run
     cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
@@ -112,8 +112,8 @@ def objective(trial):
 
     # Momentum days
     mom = trial.suggest_int('momentum_days', 1,6)
-    su  = trial.suggest_float('stop_up',   1.0, 5.0, step=0.001)
-    sd  = trial.suggest_float('stop_down', 1.0, 5.0, step=0.001)
+    su  = trial.suggest_float('stop_up',   1.0, 10.0, step=0.001)
+    sd  = trial.suggest_float('stop_down', 1.0, 10.0, step=0.001)
 
 
     # Ejecutar el backtest

@@ -8,7 +8,7 @@ from S_BI_EMA_optimized_strategy import MyPandasDataSentiment_BI_EMA_R, Sentimen
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -78,7 +78,7 @@ def run_backtest(upper_threshold, lower_threshold, long_ema_period, short_ema_pe
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.005)
+    cerebro.broker.setcommission(commission=0.003)
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
 

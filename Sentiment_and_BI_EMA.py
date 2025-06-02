@@ -48,7 +48,6 @@ class MyPandasDataSentiment_BI_EMA(bt.feeds.PandasData):
     )
 
 
-
 # --------------------------------------------------------------------
 # 4. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
@@ -278,15 +277,27 @@ if __name__ == '__main__':
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')
     cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='bh', timeframe=bt.TimeFrame.NoTimeFrame, data=data)
+
+
+
     
     print('Valor inicial del Portafoli: %.2f' % cerebro.broker.getvalue())
     strategies = cerebro.run()
     strategy = strategies[0]
 
+    strategy_return = (cerebro.broker.getvalue() -
+                   cerebro.broker.startingcash) / cerebro.broker.startingcash
+
     sharpe = strategy.analyzers.sharpe.get_analysis()
     annual = strategy.analyzers.annual.get_analysis()
     drawdown = strategy.analyzers.drawdown.get_analysis()
     trades_analyzer = strategy.analyzers.trades.get_analysis()
+    bh_series = strategy.analyzers.bh.get_analysis()
+    buyhold_ret = bh_series[max(bh_series.keys())]  # último valor
+    print(f"Rentabilidad Buy & Hold: {buyhold_ret:.2%}")
+
+    print(f"Rentabilidad estrategia: {strategy_return:.2%}")
 
     print('Valor final del Portafoli: %.2f' % cerebro.broker.getvalue())
     print(f"Nombre total d'operacions realitzades: {strategy.total_trades}")

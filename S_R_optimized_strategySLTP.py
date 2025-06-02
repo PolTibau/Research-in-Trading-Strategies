@@ -90,6 +90,22 @@ class SentimentROC_Strategy_R(bt.Strategy):
             return order
 
         return None
+    
+    def momentum_contrario(self, long_position=True):
+        """
+        Devuelve True si:
+        · long_position=True  →  los últimos N días son negativos
+        · long_position=False →  los últimos N días son positivos
+        """
+        if len(self.daily_return) < self.params.momentum_days:
+            return False
+        
+        if long_position:                      # estamos largos → ¿N días negativos?
+            return all(self.daily_return[-i] < 0
+                       for i in range(self.params.momentum_days))
+        else:                                  # estamos cortos → ¿N días positivos?
+            return all(self.daily_return[-i] > 0
+                       for i in range(self.params.momentum_days))
 
     def last_n_days_positive(self):
         """Verifica si los últimos N días han sido todos positivos en retorno."""
@@ -132,7 +148,7 @@ class SentimentROC_Strategy_R(bt.Strategy):
             self.current_invested_fraction = 0.0
             return                                    # evitamos evaluar más reglas
 
-        elif self.position.size < 0 and bbr_now > self.params.upper_threshold:
+        if self.position.size < 0 and bbr_now > self.params.upper_threshold:
             # Estábamos cortos y el sentimiento se ha girado → cerramos
             close_order = self.close()
             if close_order is not None:
@@ -140,6 +156,35 @@ class SentimentROC_Strategy_R(bt.Strategy):
             self.current_invested_fraction = 0.0
             return                                    # evitamos evaluar más reglas
 
+
+        if self.position.size > 0 and self.momentum_contrario(long_position=True):
+            close_order = self.close()
+            if close_order is not None:
+                close_order.addinfo(flag='momentum_exit_long', old_size=self.position.size)
+            self.current_invested_fraction = 0.0
+
+            # Si se permiten cortos, abrir inmediatamente la posición contraria
+            if self.params.allow_short and bbr_now < self.params.lower_threshold:
+                open_order = self.open_position_fraction(1.0, is_long=False)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
+                self.current_invested_fraction = -1.0
+            return                               # evitamos evaluar el resto
+
+        #    Si estamos cortos y ocurre momentum positivo → salir / girar
+        elif self.position.size < 0 and self.momentum_contrario(long_position=False):
+            close_order = self.close()
+            if close_order is not None:
+                close_order.addinfo(flag='momentum_exit_short', old_size=self.position.size)
+            self.current_invested_fraction = 0.0
+
+            # Si se permiten largos, abrir inmediatamente la posición contraria
+            if self.params.allow_long and bbr_now > self.params.upper_threshold:
+                open_order = self.open_position_fraction(1.0, is_long=True)
+                if open_order is not None:
+                    open_order.addinfo(flag='opening_long', open_size=0.0, open_comm=0.0)
+                self.current_invested_fraction = 1.0
+            return
 
         # # Si el valor de BBr está en la zona neutral, se cierra la posición.
         # if self.params.neutral_lower < bbr_now < self.params.neutral_upper:
@@ -158,7 +203,7 @@ class SentimentROC_Strategy_R(bt.Strategy):
         #     return
 
         # Entrada LARGA (100% de la cartera) con momentum positivo
-        elif bbr_now > self.params.upper_threshold and positive_momentum:
+        if bbr_now > self.params.upper_threshold and positive_momentum:
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
