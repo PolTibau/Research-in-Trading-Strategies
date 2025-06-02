@@ -125,7 +125,7 @@ df.drop(df.columns[0], axis=1, inplace=True)
 df.set_index(df.columns[0], inplace=True)
 df.index = pd.to_datetime(df.index)
 
-df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhypePartscr"])
+df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
 df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 df["DailyReturn"] = df["Close"].pct_change() * 100

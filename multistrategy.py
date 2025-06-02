@@ -1158,7 +1158,7 @@ def run_backtest(
 
     # (Ejemplo) si necesitas BULL, BEAR, BBr, etc.:
     if 'positivePartscr' in df.columns and 'negativePartscr' in df.columns:
-        df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhypePartscr"])
+        df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
         df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
         df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
     df["BBr"] = df["BBr"].fillna(50)
