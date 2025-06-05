@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 
-class MyPandasDataSentiment_ROC_R(bt.feeds.PandasData):
+class noMyPandasDataSentiment_ROC_R(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -25,7 +25,7 @@ class MyPandasDataSentiment_ROC_R(bt.feeds.PandasData):
 # --------------------------------------------------------------------
 # 3. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentROC_Strategy_R(bt.Strategy):
+class noSentimentROC_Strategy_R(bt.Strategy):
     params = (
         # ('upper_threshold', 65),
         # ('lower_threshold', 30),

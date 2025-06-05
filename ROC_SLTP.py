@@ -33,7 +33,7 @@ test = df.iloc[train_size:]
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment_ROC(bt.feeds.PandasData):
+class noMyPandasDataSentiment_ROC(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -70,7 +70,7 @@ class BBrPlot(bt.Indicator):
 # --------------------------------------------------------------------
 # 3. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentROC_Strategy(bt.Strategy):
+class noSentimentROC_Strategy(bt.Strategy):
     params = (
         # ('upper_threshold', 54),
         # ('lower_threshold', 24),
@@ -372,11 +372,11 @@ class SentimentROC_Strategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentROC_Strategy,
+        noSentimentROC_Strategy,
         stop_up=9.385, stop_down=8.253, momentum_days=6, allow_long=True, allow_short=True
     )
     
-    data = MyPandasDataSentiment_ROC(dataname=train)
+    data = noMyPandasDataSentiment_ROC(dataname=train)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.003)

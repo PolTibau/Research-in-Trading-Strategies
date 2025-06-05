@@ -7,7 +7,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\HSBC_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -26,7 +26,7 @@ df["BBr"] = df["BBr"].fillna(50)
 
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 
-train_size = int(len(df) * 0.7)
+train_size = int(len(df) * 0.8)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 
@@ -202,13 +202,13 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
         ema_gap_short = self.long_ema[0] - self.short_ema[0]
         ema_margin_short = self.long_ema[0] * self.params.ema_margin_pct
 
-        if current_date == self.last_date:
-            if self.position.size > 0:
-                close_order = self.close()
-                close_order.addinfo(flag='closing_long_end', old_size=self.position.size)
-            elif self.position.size < 0:
-                close_order = self.close()
-                close_order.addinfo(flag='closing_short_end', old_size=self.position.size)
+        # if current_date == self.last_date:
+        #     if self.position.size > 0:
+        #         close_order = self.close()
+        #         close_order.addinfo(flag='closing_long_end', old_size=self.position.size)
+        #     elif self.position.size < 0:
+        #         close_order = self.close()
+        #         close_order.addinfo(flag='closing_short_end', old_size=self.position.size)
 
                 # ───────── Take-Profit / Stop-Loss ─────────
         if self.position.size != 0 and self.entry_price is not None:
@@ -300,12 +300,12 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentBI_EMA_Strategy,
-        upper_threshold=59, lower_threshold=14, long_ema_period=29, short_ema_period=14, ema_margin_pct=0.01, stop_up=7.841, stop_down=9.714, allow_long=True, allow_short=True
+        upper_threshold=52, lower_threshold=3, long_ema_period=33, short_ema_period=17, ema_margin_pct=0.0033, stop_up=6.75, stop_down=9.25, allow_long=True, allow_short=True
     )
     data = MyPandasDataSentiment_BI_EMA(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.003)
+    cerebro.broker.setcommission(commission=0.001)
 
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')

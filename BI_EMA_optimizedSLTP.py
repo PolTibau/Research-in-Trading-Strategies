@@ -3,12 +3,12 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from BI_EMA_optimized_strategySLTP import MyPandasDataSentiment_BI_EMA_R, SentimentBI_EMA_Strategy_R
+from BI_EMA_optimized_strategySLTP import noMyPandasDataSentiment_BI_EMA_R, noSentimentBI_EMA_Strategy_R
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -59,12 +59,12 @@ def run_backtest(long_ema_period, short_ema_period, ema_margin_pct, stop_up, sto
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment_BI_EMA_R(dataname=train)
+    data = noMyPandasDataSentiment_BI_EMA_R(dataname=train)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentBI_EMA_Strategy_R,
+        noSentimentBI_EMA_Strategy_R,
         long_ema_period=long_ema_period,
         short_ema_period=short_ema_period,
         ema_margin_pct=ema_margin_pct,
@@ -76,7 +76,7 @@ def run_backtest(long_ema_period, short_ema_period, ema_margin_pct, stop_up, sto
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.001)
+    cerebro.broker.setcommission(commission=0.003)
     cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
 
 
@@ -105,7 +105,7 @@ def objective(trial):
 
 # Configurar Optuna con paralelización para optimización más rápida
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=2000)  # Ejecuta en paralelo en 4 núcleos
+study.optimize(objective, n_trials=1000)  # Ejecuta en paralelo en 4 núcleos
 
 # Mostrar las 3 mejores combinaciones de parámetros
 top_n = 3

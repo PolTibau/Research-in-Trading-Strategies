@@ -7,7 +7,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\GOOG_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -26,14 +26,14 @@ df["BBr"] = df["BBr"].fillna(50)
 
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 
-train_size = int(len(df) * 0.7)
+train_size = int(len(df) * 0.8)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment_BI_EMA(bt.feeds.PandasData):
+class noMyPandasDataSentiment_BI_EMA(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -54,7 +54,7 @@ class MyPandasDataSentiment_BI_EMA(bt.feeds.PandasData):
 # --------------------------------------------------------------------
 # 4. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentBI_EMA_Strategy(bt.Strategy):
+class noSentimentBI_EMA_Strategy(bt.Strategy):
     params = (
         # ('upper_threshold', 54),
         # ('lower_threshold', 24),
@@ -299,14 +299,14 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentBI_EMA_Strategy,
-        long_ema_period=40, short_ema_period=6, ema_margin_pct=0.009, stop_up=9.577, stop_down=9.337, allow_long=True, allow_short=True
+        noSentimentBI_EMA_Strategy,
+        long_ema_period=37, short_ema_period=3, ema_margin_pct=0.0076, stop_up=9.5, stop_down=4.5, allow_long=True, allow_short=True
     )
     
-    data = MyPandasDataSentiment_BI_EMA(dataname=test)
+    data = noMyPandasDataSentiment_BI_EMA(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.003)
+    cerebro.broker.setcommission(commission=0.001)
 
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')

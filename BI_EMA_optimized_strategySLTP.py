@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 
-class MyPandasDataSentiment_BI_EMA_R(bt.feeds.PandasData):
+class noMyPandasDataSentiment_BI_EMA_R(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -24,7 +24,7 @@ class MyPandasDataSentiment_BI_EMA_R(bt.feeds.PandasData):
 # --------------------------------------------------------------------
 # 3. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentBI_EMA_Strategy_R(bt.Strategy):
+class noSentimentBI_EMA_Strategy_R(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),

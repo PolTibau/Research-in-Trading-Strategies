@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from ROC_optimized_strategySLTP import MyPandasDataSentiment_ROC_R, SentimentROC_Strategy_R
+from ROC_optimized_strategySLTP import noMyPandasDataSentiment_ROC_R, noSentimentROC_Strategy_R
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas

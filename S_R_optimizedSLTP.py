@@ -8,7 +8,7 @@ from S_R_optimized_strategySLTP import MyPandasDataSentiment_ROC_R, SentimentROC
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\HSBC_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\GOOG_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -64,8 +64,6 @@ def run_backtest(upper_threshold, lower_threshold, stop_up, stop_down, momentum_
         SentimentROC_Strategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
-        # neutral_lower=neutral_lower,
-        # neutral_upper=neutral_upper,
         momentum_days=momentum_days,
         stop_up=stop_up,
         stop_down=stop_down,
@@ -75,7 +73,7 @@ def run_backtest(upper_threshold, lower_threshold, stop_up, stop_down, momentum_
 
     # 4. Broker
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.003)
+    cerebro.broker.setcommission(commission=0.005)
 
     # 5. Run
     cerebro.run(maxcpus=1)  # Usar maxcpus=1 evita overhead en multiproceso (más estable en Windows)
@@ -122,7 +120,7 @@ def objective(trial):
     return final_val
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=2000)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=1000)  # prueba 200 iteraciones
 
 print()
 print("Els millors paràmetres són:", study.best_params)
