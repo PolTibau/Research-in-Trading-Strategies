@@ -715,14 +715,14 @@ class SentimentCCI_Strategy(bt.Strategy):
         ('cci_lower_threshold', -100),
         ('neutral_lower', 26),
         ('neutral_upper', 27),
-        ('sma_period', 2),  # Nombre de dies requerits de momentum positiu/negatiu
+        ('ema_period', 2),  # Nombre de dies requerits de momentum positiu/negatiu
         ('allow_short', True),
         ('allow_long', True),
     )
 
     def __init__(self):
         self.bbr = self.datas[0].bbr
-        self.cci = bt.indicators.CCI(self.datas[0], period=self.params.sma_period)  # Calculamos el CCI aquí
+        self.cci = bt.indicators.CCI(self.datas[0], period=self.params.ema_period)  # Calculamos el CCI aquí
         self.open_price = self.datas[0].open  # Precio de Open para entrar y salir
         self.initial_cash = self.broker.getvalue()
         self.current_invested_fraction = 0.0
@@ -1231,7 +1231,7 @@ if __name__ == '__main__':
         (arxiu, SentimentWPR_EMA_Strategy, MyPandasDataSentiment_WPR_EMA, dict(upper_threshold=49, lower_threshold=44, wpr_period=14, ema_period=17, wpr_os=-87, wpr_ob=-2, ema_th=41, neutral_lower=46, neutral_upper=47, allow_long=True, allow_short=True)),
         (arxiu, SentimentWPR_RSI_Strategy, MyPandasDataSentiment_WPR_RSI, dict(upper_threshold=68, lower_threshold=56, period=17, wpr_os=-99, wpr_ob=-19, rsi_os=28, rsi_ob=67, neutral_lower=62, neutral_upper=65, allow_long=True, allow_short=True)),
         (arxiu, SentimentROC_Strategy, MyPandasDataSentiment_ROC, dict(upper_threshold=51, lower_threshold=8, neutral_lower=11, neutral_upper=13, momentum_days=5, allow_long=True, allow_short=True)),
-        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=44, lower_threshold=5, cci_upper_threshold=71, cci_lower_threshold=-139, neutral_lower=30, neutral_upper=35, sma_period=29, allow_long=True, allow_short=True)),
+        (arxiu, SentimentCCI_Strategy, MyPandasDataSentiment_CCI, dict(upper_threshold=44, lower_threshold=5, cci_upper_threshold=71, cci_lower_threshold=-139, neutral_lower=30, neutral_upper=35, ema_period=29, allow_long=True, allow_short=True)),
         (arxiu, SentimentSMI_Strategy, MyPandasDataSentiment_SMI, dict(upper_threshold=43, lower_threshold=19, pfast=9, pslow=13, period=14, smasig=9, neutral_lower=33, neutral_upper=35, allow_long=True, allow_short=True)),
     ]
 

@@ -1,4 +1,5 @@
 import pandas as pd
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
@@ -8,7 +9,7 @@ from NOUS_R_optimized_strategySLTP import NOUMyPandasDataSentiment_ROC_R, NOUSen
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\GOOG_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -51,7 +52,7 @@ possible_lower = range(BBr_min, BBr_av)
 possible_neutral_lower = range(BBr_av-15, BBr_av)
 possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 
-def run_backtest(upper_threshold, lower_threshold, lookback, mom_lb, mom_avg, ma_period, atr_p, sl_mul, tp_mul):
+def run_backtest(upper_threshold, lower_threshold, mom_lb, mom_avg, ema_period, atr_p, sl_mul, tp_mul):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
@@ -62,17 +63,16 @@ def run_backtest(upper_threshold, lower_threshold, lookback, mom_lb, mom_avg, ma
     # 3. Añadir la estrategia
     cerebro.addstrategy(
         NOUSentimentROC_Strategy_R,
-        upper_pct=upper_threshold,
-        lower_pct=lower_threshold,
-        lookback_thr=lookback,
-        mom_lookback=mom_lb,  # ¡Aquí ojo! momentum_days es el parámetro que tenías en la función, pero ya lo sustituiste por mom_lb (corrígelo).
-        mom_min_avg=mom_avg,
-        sma_period=ma_period,
-        atr_period=atr_p,
-        sl_mult=sl_mul,
-        tp_mult=tp_mul,
+        upper_threshold=upper_threshold,
+        lower_threshold=lower_threshold,
+        mom_lb=mom_lb, 
+        mom_avg=mom_avg,
+        ema_period=ema_period,
+        atr_p=atr_p,
+        sl_mul=sl_mul,
+        tp_mul=tp_mul,
         allow_short=True,
-        allow_long=True
+        allow_long=False
     )
 
 
@@ -91,20 +91,19 @@ def run_backtest(upper_threshold, lower_threshold, lookback, mom_lb, mom_avg, ma
 # --------------------------------------------------------------------
 def objective(trial):
     # Definir los límites de los parámetros correctamente
-    up = trial.suggest_int('upper_pct', 50, 85)
-    low = trial.suggest_int('lower_pct', 15, min(up-10, 50))
-    lookback = trial.suggest_int('lookback_thr', 50, 200)
+    upper_threshold = trial.suggest_int('upper_threshold', BBr_av, BBr_max)
+    lower_threshold = trial.suggest_int('lower_threshold', BBr_min, upper_threshold - 1)
 
-    mom_lb = trial.suggest_int('mom_lookback', 3, 10)
-    mom_avg = trial.suggest_float('mom_min_avg', 0.0, 0.3, step=0.01)
-    ma_period = trial.suggest_int('sma_period', 50, 200)
+    mom_lb = trial.suggest_int('mom_lb', 3, 10)
+    mom_avg = trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01)
+    ema_period = trial.suggest_int('ema_period', 30, 80)
 
-    atr_p  = trial.suggest_int('atr_period', 10, 30)
-    sl_mul = trial.suggest_float('sl_mult', 1.0, 4.0, step=0.1)
-    tp_mul = trial.suggest_float('tp_mult', 1.0, 6.0, step=0.1)
+    atr_p  = trial.suggest_int('atr_p', 10, 30)
+    sl_mul = trial.suggest_float('sl_mul', 1.0, 10.0, step=0.01)
+    tp_mul = trial.suggest_float('tp_mul', 1.0, 10.0, step=0.01)
 
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, lookback, mom_lb, mom_avg, ma_period, atr_p, sl_mul, tp_mul)
+    final_val = run_backtest(upper_threshold, lower_threshold, mom_lb, mom_avg, ema_period, atr_p, sl_mul, tp_mul)
 
     return final_val
 
@@ -114,3 +113,20 @@ study.optimize(objective, n_trials=1000)  # prueba 200 iteraciones
 print()
 print("Els millors paràmetres són:", study.best_params)
 print("Valor óptimo:", study.best_value)
+
+# Imprimir en formato listo para pegar
+best_params = study.best_params
+formatted = (
+    f"upper_threshold={best_params['upper_threshold']}, "
+    f"lower_threshold={best_params['lower_threshold']}, "
+    f"mom_lb={best_params['mom_lb']}, "
+    f"mom_avg={best_params['mom_avg']}, "
+    f"ema_period={best_params['ema_period']}, "
+    f"atr_p={best_params['atr_p']}, "
+    f"sl_mul={best_params['sl_mul']}, "
+    f"tp_mul={best_params['tp_mul']}, "
+    f"allow_long=True, allow_short=True"
+)
+
+print("\nParámetros para copiar directamente:\n", formatted)
+

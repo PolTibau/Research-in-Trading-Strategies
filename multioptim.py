@@ -9,7 +9,10 @@ import numpy as np
 import backtrader as bt
 import optuna
 from optuna.pruners import MedianPruner   # ← tallarà trials molt dolents
-
+from NOUS_R_optimized_strategySLTP import (
+    NOUMyPandasDataSentiment_ROC_R,
+    NOUSentimentROC_Strategy_R,
+)
 from S_R_optimized_strategySLTP import (
     MyPandasDataSentiment_ROC_R,
     SentimentROC_Strategy_R,
@@ -44,7 +47,7 @@ def suppress_output():
         finally:
             sys.stdout = old_stdout
 
-parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\APPL_reord.parquet'
+parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
 df = pd.read_parquet(parquet_path)
 
 # Elimina primera columna si és Index antic
@@ -82,11 +85,11 @@ def run_backtest(strategy_cls, data_cls, strategy_params, commission):
     return cerebro.broker.getvalue()
 
 def objective(trial, commission):
-    """Funció d'Optuna per a la SentimentROC_Strategy_R."""
-    up  = trial.suggest_int('upper_threshold',  BBr_av, BBr_max)
-    low = trial.suggest_int('lower_threshold',  BBr_min, up - 2)
-    if low >= up:
-        return -1e9  # rebutja combinació impossible
+    # """Funció d'Optuna per a la SentimentROC_Strategy_R."""
+    # up  = trial.suggest_int('upper_threshold',  BBr_av, BBr_max)
+    # low = trial.suggest_int('lower_threshold',  BBr_min, up - 2)
+    # if low >= up:
+    #     return -1e9  # rebutja combinació impossible
 
     # params = {
     #     'upper_threshold': up,
@@ -104,16 +107,27 @@ def objective(trial, commission):
     #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
     #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
     # }
+    # params = {
+    #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
+    #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
+    #     'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
+    #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
+    #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
+    # }
     params = {
-        'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
-        'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
-        'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
-        'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
-        'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
+        'upper_threshold':    trial.suggest_int('upper_threshold', 50, 90),
+        'lower_threshold':    trial.suggest_int('lower_threshold', 10, 50),
+        'mom_lb':       trial.suggest_int('mom_lb', 3, 10),
+        'mom_avg':      trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01),
+        'ema_period':   trial.suggest_int('ema_period', 30, 80),
+        'atr_p':        trial.suggest_int('atr_p', 10, 30),
+        'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
+        'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
     }
+
     return run_backtest(
-        noSentimentBI_EMA_Strategy_R,
-        noMyPandasDataSentiment_BI_EMA_R,
+        NOUSentimentROC_Strategy_R,
+        NOUMyPandasDataSentiment_ROC_R,
         params,
         commission,
     )
@@ -127,7 +141,7 @@ def optimize_one_commission(commission, n_trials=1000):
 # 3. Llançament paral·lel
 # ───────────────────────────────
 if __name__ == '__main__':
-    commissions = [0.001, 0.003, 0.005]
+    commissions = [0.001, 0.001, 0.003, 0.003, 0.005, 0.005]
     n_workers   = min(len(commissions), os.cpu_count() or 1)
 
     results = []

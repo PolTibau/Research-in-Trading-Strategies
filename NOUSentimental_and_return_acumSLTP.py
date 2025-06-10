@@ -8,7 +8,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -35,7 +35,7 @@ print(df.loc['2021-10-23':'2021-11-23', 'DailyReturn'])
 # Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
 
 
-train_size = int(len(df) * 0.8)
+train_size = int(len(df) * 0.70)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 
@@ -67,15 +67,14 @@ class NOUMyPandasDataSentiment_ROC(bt.feeds.PandasData):
 # --------------------------------------------------------------------
 class NOUSentimentROC_Strategy(bt.Strategy):
     params = (
-    ('upper_pct', 70),
-    ('lower_pct', 30),
-    ('lookback_thr', 126),
-    ('mom_lookback', 5),
-    ('mom_min_avg', 0.1),
-    ('sma_period', 200),
-    ('atr_period', 14),
-    ('sl_mult', 2.0),
-    ('tp_mult', 3.0),
+    ('upper_threshold', 70),
+    ('lower_threshold', 30),
+    ('mom_lb', 5),
+    ('mom_avg', 0.1),
+    ('ema_period', 200),
+    ('atr_p', 14),
+    ('sl_mul', 2.0),
+    ('tp_mul', 3.0),
     ('allow_short', True),
     ('allow_long', True),
     )
@@ -89,8 +88,8 @@ class NOUSentimentROC_Strategy(bt.Strategy):
         self.low_price = self.datas[0].low
 
         # Indicadores de volatilidad y tendencia
-        self.atr = bt.indicators.AverageTrueRange(period=self.params.atr_period)
-        self.sma = bt.indicators.SimpleMovingAverage(self.datas[0].close, period=self.params.sma_period)
+        self.atr = bt.indicators.AverageTrueRange(period=self.params.atr_p)
+        self.sma = bt.indicators.ExponentialMovingAverage(self.datas[0].close, period=self.params.ema_period)
 
         # Control de inversión
         self.current_invested_fraction = 0.0
@@ -101,15 +100,6 @@ class NOUSentimentROC_Strategy(bt.Strategy):
         self.total_commission = 0
         self.open_size = 0.0
         self.open_commission = 0.0
-    
-    def calc_dynamic_thresholds(self):
-        lookback = self.params.lookback_thr
-        if len(self.data) < lookback:
-            return None, None
-        bbr_hist = list(self.bbr.get(size=lookback))
-        upper_thr = np.percentile(bbr_hist, self.params.upper_pct)
-        lower_thr = np.percentile(bbr_hist, self.params.lower_pct)
-        return upper_thr, lower_thr
     
     def momentum_avg(self, lookback, min_avg):
         if len(self.daily_return) < lookback:
@@ -259,10 +249,6 @@ class NOUSentimentROC_Strategy(bt.Strategy):
         return all(self.daily_return[-i] < 0 for i in range(self.params.momentum_days))
 
     def next(self):
-        # Calcular los umbrales dinámicos del BBr
-        upper_thr, lower_thr = self.calc_dynamic_thresholds()
-        if upper_thr is None:
-            return
 
         bbr_now = self.bbr[0]
         price_now = self.data.close[0]
@@ -273,14 +259,14 @@ class NOUSentimentROC_Strategy(bt.Strategy):
         trend_up = price_now > sma_now
 
         # Momentum promedio
-        pos_momentum = self.momentum_avg(self.params.mom_lookback, self.params.mom_min_avg)
-        neg_momentum = self.momentum_avg(self.params.mom_lookback, -self.params.mom_min_avg)
+        pos_momentum = self.momentum_avg(self.params.mom_lb, self.params.mom_avg)
+        neg_momentum = self.momentum_avg(self.params.mom_lb, -self.params.mom_avg)
 
         # ───────── Gestión de posiciones existentes: Stops dinámicos ATR ─────────
         if self.position.size != 0 and self.entry_price is not None:
             if self.position.size > 0:
-                stop_loss = self.entry_price - self.params.sl_mult * atr_now
-                take_profit = self.entry_price + self.params.tp_mult * atr_now
+                stop_loss = self.entry_price - self.params.sl_mul * atr_now
+                take_profit = self.entry_price + self.params.tp_mul * atr_now
                 if price_now <= stop_loss or price_now >= take_profit:
                     close_order = self.close()
                     if close_order is not None:
@@ -288,8 +274,8 @@ class NOUSentimentROC_Strategy(bt.Strategy):
                     self.current_invested_fraction = 0.0
                     return
             elif self.position.size < 0:
-                stop_loss = self.entry_price + self.params.sl_mult * atr_now
-                take_profit = self.entry_price - self.params.tp_mult * atr_now
+                stop_loss = self.entry_price + self.params.sl_mul * atr_now
+                take_profit = self.entry_price - self.params.tp_mul * atr_now
                 if price_now >= stop_loss or price_now <= take_profit:
                     close_order = self.close()
                     if close_order is not None:
@@ -298,14 +284,14 @@ class NOUSentimentROC_Strategy(bt.Strategy):
                     return
 
         # ───────── Salida por reversión de sentimiento ─────────
-        if self.position.size > 0 and bbr_now < lower_thr:
+        if self.position.size > 0 and bbr_now < self.params.lower_threshold:
             close_order = self.close()
             if close_order is not None:
                 close_order.addinfo(flag='closing_long', old_size=self.position.size)
             self.current_invested_fraction = 0.0
             return
 
-        if self.position.size < 0 and bbr_now > upper_thr:
+        if self.position.size < 0 and bbr_now > self.params.upper_threshold:
             close_order = self.close()
             if close_order is not None:
                 close_order.addinfo(flag='closing_short', old_size=self.position.size)
@@ -313,7 +299,7 @@ class NOUSentimentROC_Strategy(bt.Strategy):
             return
 
         # ───────── Entrada larga ─────────
-        if self.params.allow_long and bbr_now > upper_thr and pos_momentum and trend_up:
+        if self.params.allow_long and bbr_now > self.params.upper_threshold and pos_momentum and trend_up:
             if self.current_invested_fraction < 0:
                 close_order = self.close()
                 if close_order is not None:
@@ -326,7 +312,7 @@ class NOUSentimentROC_Strategy(bt.Strategy):
             return
 
         # ───────── Entrada corta ─────────
-        if self.params.allow_short and bbr_now < lower_thr and neg_momentum and not trend_up:
+        if self.params.allow_short and bbr_now < self.params.lower_threshold and neg_momentum and not trend_up:
             if self.current_invested_fraction > 0:
                 close_order = self.close()
                 if close_order is not None:
@@ -337,76 +323,76 @@ class NOUSentimentROC_Strategy(bt.Strategy):
                     open_order.addinfo(flag='opening_short', open_size=0.0, open_comm=0.0)
                 self.current_invested_fraction = -1.0 
 
-    # --------------------------------------------------------------------
-    # 4. Configurar i executar Backtrader
-    # --------------------------------------------------------------------
-    if __name__ == '__main__':
-        cerebro = bt.Cerebro()
-        strategy = cerebro.addstrategy(
-            NOUSentimentROC_Strategy,
-            upper_threshold=51, lower_threshold=0, stop_up=7.25, stop_down=9.25, momentum_days=3, allow_long=True, allow_short=True
-        )
-        
-        data = MyPandasDataSentiment_ROC(dataname=train)
-        cerebro.adddata(data)
-        cerebro.broker.setcash(100000.0)
-        cerebro.broker.setcommission(commission=0.001)
+# --------------------------------------------------------------------
+# 4. Configurar i executar Backtrader
+# --------------------------------------------------------------------
+if __name__ == '__main__':
+    cerebro = bt.Cerebro()
+    strategy = cerebro.addstrategy(
+        NOUSentimentROC_Strategy,
+        upper_threshold=60, lower_threshold=11, mom_lb=10, mom_avg=0.02, ema_period=57, atr_p=27, sl_mul=3.0, tp_mul=1.9, allow_long=True, allow_short=True
+    )
 
-        cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
-        cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')
-        cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
-        cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
-        cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='bh', timeframe=bt.TimeFrame.NoTimeFrame, data=data)
+    data = NOUMyPandasDataSentiment_ROC(dataname=test)
+    cerebro.adddata(data)
+    cerebro.broker.setcash(100000.0)
+    cerebro.broker.setcommission(commission=0.001)
 
-        
-        print('Valor inicial del Portafoli: %.2f' % cerebro.broker.getvalue())
-        strategies = cerebro.run()
-        strategy = strategies[0]
+    cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
+    cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')
+    cerebro.addanalyzer(bt.analyzers.DrawDown, _name='drawdown')
+    cerebro.addanalyzer(bt.analyzers.TradeAnalyzer, _name='trades')
+    cerebro.addanalyzer(bt.analyzers.TimeReturn, _name='bh', timeframe=bt.TimeFrame.NoTimeFrame, data=data)
 
-        strategy_return = (cerebro.broker.getvalue() -
-                    cerebro.broker.startingcash) / cerebro.broker.startingcash
+    
+    print('Valor inicial del Portafoli: %.2f' % cerebro.broker.getvalue())
+    strategies = cerebro.run()
+    strategy = strategies[0]
 
-        sharpe = strategy.analyzers.sharpe.get_analysis()
-        annual = strategy.analyzers.annual.get_analysis()
-        drawdown = strategy.analyzers.drawdown.get_analysis()
-        trades_analyzer = strategy.analyzers.trades.get_analysis()
-        bh_series = strategy.analyzers.bh.get_analysis()
-        buyhold_ret = bh_series[max(bh_series.keys())]  # último valor
-        print(f"Rentabilidad Buy & Hold: {buyhold_ret:.2%}")
+    strategy_return = (cerebro.broker.getvalue() -
+                cerebro.broker.startingcash) / cerebro.broker.startingcash
 
-        print(f"Rentabilidad estrategia: {strategy_return:.2%}")
+    sharpe = strategy.analyzers.sharpe.get_analysis()
+    annual = strategy.analyzers.annual.get_analysis()
+    drawdown = strategy.analyzers.drawdown.get_analysis()
+    trades_analyzer = strategy.analyzers.trades.get_analysis()
+    bh_series = strategy.analyzers.bh.get_analysis()
+    buyhold_ret = bh_series[max(bh_series.keys())]  # último valor
+    print(f"Rentabilidad Buy & Hold: {buyhold_ret:.2%}")
 
-        print('Valor final del Portafoli: %.2f' % cerebro.broker.getvalue())
-        print(f"Nombre total d'operacions realitzades: {strategy.total_trades}")
-        print(f'Total de comissions pagades: {strategy.total_commission:.2f}')
+    print(f"Rentabilidad estrategia: {strategy_return:.2%}")
 
-        print('Sharpe Ratio (rf=2%):', f"{sharpe.get('sharperatio', float('nan')):.2f}")
+    print('Valor final del Portafoli: %.2f' % cerebro.broker.getvalue())
+    print(f"Nombre total d'operacions realitzades: {strategy.total_trades}")
+    print(f'Total de comissions pagades: {strategy.total_commission:.2f}')
 
-        # Win % -> se obtiene de trades_analyzer
-        closed_trades = trades_analyzer['total']['closed']
-        if closed_trades > 0:
-            won_trades = trades_analyzer['won']['total']
-            win_rate = won_trades / closed_trades * 100
-        else:
-            win_rate = 0
-        print(f"Win %: {win_rate:.2f}%")
+    print('Sharpe Ratio (rf=2%):', f"{sharpe.get('sharperatio', float('nan')):.2f}")
 
-        # Individuales por año (opcional)
-        for year, ret in annual.items():
-            print(f"Annual Return {year}:", f"{ret:.2%}")
+    # Win % -> se obtiene de trades_analyzer
+    closed_trades = trades_analyzer['total']['closed']
+    if closed_trades > 0:
+        won_trades = trades_analyzer['won']['total']
+        win_rate = won_trades / closed_trades * 100
+    else:
+        win_rate = 0
+    print(f"Win %: {win_rate:.2f}%")
 
-        # Promedio global
-        annual_returns = list(annual.values())
-        if annual_returns:
-            avg_annual_return = mean(annual_returns)
-            excess_return = avg_annual_return - 0.02
-            print('Average Annual Return:', f"{avg_annual_return:.2%}")
-            print('Excess Return (vs 2% RF):', f"{excess_return:.2%}")
+    # Individuales por año (opcional)
+    for year, ret in annual.items():
+        print(f"Annual Return {year}:", f"{ret:.2%}")
+
+    # Promedio global
+    annual_returns = list(annual.values())
+    if annual_returns:
+        avg_annual_return = mean(annual_returns)
+        excess_return = avg_annual_return - 0.02
+        print('Average Annual Return:', f"{avg_annual_return:.2%}")
+        print('Excess Return (vs 2% RF):', f"{excess_return:.2%}")
 
 
-        print('Max Drawdown:', f"{drawdown.max.drawdown:.2f}%")
-        print('Max Drawdown Duration (days):', drawdown.max.len)
+    print('Max Drawdown:', f"{drawdown.max.drawdown:.2f}%")
+    print('Max Drawdown Duration (days):', drawdown.max.len)
 
-        print('Total Trades:', trades_analyzer.total.closed)
-        
-        cerebro.plot()
+    print('Total Trades:', trades_analyzer.total.closed)
+    
+    cerebro.plot()

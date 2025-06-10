@@ -8,7 +8,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AAPL_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
