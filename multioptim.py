@@ -47,7 +47,7 @@ def suppress_output():
         finally:
             sys.stdout = old_stdout
 
-parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
+parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
 df = pd.read_parquet(parquet_path)
 
 # Elimina primera columna si és Index antic
@@ -98,36 +98,36 @@ def objective(trial, commission):
     #     'stop_down':  trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
     #     'momentum_days': trial.suggest_int('momentum_days', 2, 6),
     # }
-    # params = {
-    #     'upper_threshold': up,
-    #     'lower_threshold': low,
-    #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
-    #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
-    #     'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
-    #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
-    #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
-    # }
-    # params = {
-    #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
-    #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
-    #     'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
-    #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
-    #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
-    # }
     params = {
-        'upper_threshold':    trial.suggest_int('upper_threshold', 50, 90),
-        'lower_threshold':    trial.suggest_int('lower_threshold', 10, 50),
-        'mom_lb':       trial.suggest_int('mom_lb', 3, 10),
-        'mom_avg':      trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01),
-        'ema_period':   trial.suggest_int('ema_period', 30, 80),
-        'atr_p':        trial.suggest_int('atr_p', 10, 30),
-        'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
-        'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
+        'upper_threshold': trial.suggest_int('upper_threshold', 50, 100),
+        'lower_threshold': trial.suggest_int('lower_threshold', 0, 50),
+        'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
+        'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
+        'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
+        'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
+        'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
     }
+    # params = {
+    #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
+    #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
+    #     'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
+    #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
+    #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
+    # }
+    # params = {
+    #     'upper_threshold':    trial.suggest_int('upper_threshold', 50, 90),
+    #     'lower_threshold':    trial.suggest_int('lower_threshold', 10, 50),
+    #     'mom_lb':       trial.suggest_int('mom_lb', 3, 10),
+    #     'mom_avg':      trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01),
+    #     'ema_period':   trial.suggest_int('ema_period', 30, 80),
+    #     'atr_p':        trial.suggest_int('atr_p', 10, 30),
+    #     'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
+    #     'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
+    # }
 
     return run_backtest(
-        NOUSentimentROC_Strategy_R,
-        NOUMyPandasDataSentiment_ROC_R,
+        SentimentBI_EMA_Strategy_R,
+        MyPandasDataSentiment_BI_EMA_R,
         params,
         commission,
     )

@@ -7,7 +7,7 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\DB_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -26,7 +26,7 @@ df["BBr"] = df["BBr"].fillna(50)
 
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 
-train_size = int(len(df) * 0.8)
+train_size = int(len(df) * 0.7)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 
@@ -111,6 +111,7 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
                 open_size = self.open_size
                 open_comm = self.open_commission
                 close_comm = order.executed.comm
+                print(exit_price, self.entry_price, open_size, open_comm, close_comm)
                 profit_loss = (exit_price - self.entry_price) * open_size - (open_comm + close_comm)
 
                 days_in_trade = (self.datas[0].datetime.date(0) - self.entry_date).days
@@ -127,6 +128,7 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
                 open_size = self.open_size
                 open_comm = self.open_commission
                 close_comm = order.executed.comm
+                print(exit_price, self.entry_price, open_size, open_comm, close_comm)
                 profit_loss = (exit_price - self.entry_price) * open_size - (open_comm + close_comm)
 
                 days_in_trade = (self.datas[0].datetime.date(0) - self.entry_date).days
@@ -179,7 +181,7 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
         comission = self.broker.getcommissioninfo(self.data).p.commission
 
         # Ajustamos la inversión (ej. 0.9 para dejar un 10% de colchón)
-        capital_a_invertir = self.broker.getvalue() * fraction * 0.9
+        capital_a_invertir = self.broker.getvalue() * fraction * 0.5
 
         size = capital_a_invertir / (price * (1 + comission))
 
@@ -218,12 +220,20 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
             if self.position.size < 0:          # si es corto, la señal se invierte
                 pct = -pct
 
-            if pct >= self.params.stop_up or pct <= -self.params.stop_down:
+            if (pct >= self.params.stop_up or pct <= -self.params.stop_down) and self.position.size < 0:
                 o = self.close()                # salimos a neutro
                 if o is not None:
-                    o.addinfo(flag='stop_exit')
+                    o.addinfo(flag='closing_short', old_size=self.position.size)
                 self.current_invested_fraction = 0.0
-                                           # saltamos el resto de reglas
+                return
+            
+            elif (pct >= self.params.stop_up or pct <= -self.params.stop_down) and self.position.size > 0:
+                o = self.close()                # salimos a neutro
+                if o is not None:
+                    o.addinfo(flag='closing_long', old_size=self.position.size)
+                self.current_invested_fraction = 0.0
+                return                          # saltamos el resto de reglas
+                
             
             # ───────── Salida inversa por BBr ─────────
         if self.position.size > 0 and bbr_now < self.params.lower_threshold:
@@ -232,6 +242,7 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
             if close_order is not None:
                 close_order.addinfo(flag='closing_long', old_size=self.position.size)
             self.current_invested_fraction = 0.0
+            return
                                                 # evitamos evaluar más reglas
 
         elif self.position.size < 0 and bbr_now > self.params.upper_threshold:
@@ -240,6 +251,7 @@ class SentimentBI_EMA_Strategy(bt.Strategy):
             if close_order is not None:
                 close_order.addinfo(flag='closing_short', old_size=self.position.size)
             self.current_invested_fraction = 0.0
+            return
                                                 # evitamos evaluar más reglas
 
         # Si el valor de BBr está en la zona neutral, se cierra la posición.
@@ -300,7 +312,7 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentBI_EMA_Strategy,
-        upper_threshold=52, lower_threshold=3, long_ema_period=33, short_ema_period=17, ema_margin_pct=0.0033, stop_up=6.75, stop_down=9.25, allow_long=True, allow_short=True
+        upper_threshold=55, lower_threshold=10, long_ema_period=21, short_ema_period=8, ema_margin_pct=0.0085, stop_up=5.5, stop_down=8.5, allow_long=True, allow_short=True
     )
     data = MyPandasDataSentiment_BI_EMA(dataname=test)
     cerebro.adddata(data)
