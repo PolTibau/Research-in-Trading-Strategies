@@ -124,6 +124,14 @@ def objective(trial, commission):
     #     'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
     #     'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
     # }
+    params = {
+        'mom_lb':       trial.suggest_int('mom_lb', 3, 10),
+        'mom_avg':      trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01),
+        'ema_period':   trial.suggest_int('ema_period', 30, 80),
+        'atr_p':        trial.suggest_int('atr_p', 10, 30),
+        'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
+        'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
+    }
 
     return run_backtest(
         SentimentBI_EMA_Strategy_R,
