@@ -333,7 +333,7 @@ if __name__ == '__main__':
         upper_threshold=60, lower_threshold=11, mom_lb=10, mom_avg=0.02, ema_period=57, atr_p=27, sl_mul=3.0, tp_mul=1.9, allow_long=True, allow_short=True
     )
 
-    data = NOUMyPandasDataSentiment_ROC(dataname=test)
+    data = NOUMyPandasDataSentiment_ROC(dataname=train)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.001)

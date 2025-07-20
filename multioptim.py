@@ -21,15 +21,14 @@ from S_BI_EMA_optimized_strategySLTP import (
     MyPandasDataSentiment_BI_EMA_R,
     SentimentBI_EMA_Strategy_R,
 )
-from ROC_optimized_strategySLTP import (
-    noMyPandasDataSentiment_ROC_R,
-    noSentimentROC_Strategy_R,
-)
 from BI_EMA_optimized_strategySLTP import (
     noMyPandasDataSentiment_BI_EMA_R,
     noSentimentBI_EMA_Strategy_R,
 )
-
+from ROC_optimized_strategySLTP import (
+    NOUROC_R,
+    NOUROC_Strategy_R,
+)
 # ───────────────────────────────
 # 1. Configuració bàsica i dades
 # ───────────────────────────────
@@ -47,7 +46,7 @@ def suppress_output():
         finally:
             sys.stdout = old_stdout
 
-parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
+parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
 df = pd.read_parquet(parquet_path)
 
 # Elimina primera columna si és Index antic
@@ -89,24 +88,16 @@ def objective(trial, commission):
     # up  = trial.suggest_int('upper_threshold',  BBr_av, BBr_max)
     # low = trial.suggest_int('lower_threshold',  BBr_min, up - 2)
     # if low >= up:
-    #     return -1e9  # rebutja combinació impossible
-
+    #     return -1e9  # rebutja combinació impossible}
     # params = {
-    #     'upper_threshold': up,
-    #     'lower_threshold': low,
-    #     'stop_up':    trial.suggest_float('stop_up',   1.0, 10.0, step=0.25),
-    #     'stop_down':  trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
-    #     'momentum_days': trial.suggest_int('momentum_days', 2, 6),
+    #     'upper_threshold': trial.suggest_int('upper_threshold', 50, 100),
+    #     'lower_threshold': trial.suggest_int('lower_threshold', 0, 50),
+    #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
+    #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
+    #     'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
+    #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
+    #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
     # }
-    params = {
-        'upper_threshold': trial.suggest_int('upper_threshold', 50, 100),
-        'lower_threshold': trial.suggest_int('lower_threshold', 0, 50),
-        'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
-        'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
-        'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
-        'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
-        'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
-    }
     # params = {
     #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
     #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
@@ -134,8 +125,8 @@ def objective(trial, commission):
     }
 
     return run_backtest(
-        SentimentBI_EMA_Strategy_R,
-        MyPandasDataSentiment_BI_EMA_R,
+        NOUROC_Strategy_R,
+        NOUROC_R,
         params,
         commission,
     )
