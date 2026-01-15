@@ -7,26 +7,46 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
+# fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\JPM_reord.parquet'
+# df = pd.read_parquet(fitxer_parquet)
+
+# # Eliminar la primera columna "Unnamed: 0" si apareix
+# df.drop(df.columns[0], axis=1, inplace=True)
+
+# # Establir la columna "Date" (o la corresponent) com a índex i convertir a datetime
+# df.set_index(df.columns[0], inplace=True)
+# df.index = pd.to_datetime(df.index)
+
+# # Crear les columnes de BULL, BEAR i finalment la BBr
+# df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
+# df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
+# df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
+# df["BBr"] = df["BBr"].fillna(50)
+
+
+# print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
+
+# train_size = int(len(df) * 0.7)
+# train = df.iloc[:train_size]
+# test = df.iloc[train_size:]
+
+fitxer_parquet = r'C:\Users\polti\Downloads\lexicons\split\JPM_trans.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
-# Eliminar la primera columna "Unnamed: 0" si apareix
-df.drop(df.columns[0], axis=1, inplace=True)
 
-# Establir la columna "Date" (o la corresponent) com a índex i convertir a datetime
-df.set_index(df.columns[0], inplace=True)
+if 'Volume' not in df.columns:
+    df['Volume'] = 0.0   
+
+df.set_index(df['Date'], inplace=True)
+
 df.index = pd.to_datetime(df.index)
 
-# Crear les columnes de BULL, BEAR i finalment la BBr
-df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
-df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
-df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
-df["BBr"] = df["BBr"].fillna(50)
+
+df["DailyReturn"] = df["Close"].pct_change() * 100  # Retorn diari en percentatge
+df.rename(columns={'sentiment_score': 'BBr'}, inplace=True)
 
 
-print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
-
-train_size = int(len(df) * 0.7)
+train_size = int(len(df) * 0.70)
 train = df.iloc[:train_size]
 test = df.iloc[train_size:]
 
@@ -312,7 +332,7 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentBI_EMA_Strategy,
-        upper_threshold=55, lower_threshold=10, long_ema_period=21, short_ema_period=8, ema_margin_pct=0.0085, stop_up=5.5, stop_down=8.5, allow_long=True, allow_short=True
+        upper_threshold=61, lower_threshold=20, long_ema_period=21, short_ema_period=7, ema_margin_pct=0.0042, stop_up=7.5, stop_down=9.5, allow_long=True, allow_short=True
     )
     data = MyPandasDataSentiment_BI_EMA(dataname=test)
     cerebro.adddata(data)

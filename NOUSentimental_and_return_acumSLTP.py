@@ -8,30 +8,34 @@ from statistics import mean
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_parquet = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
+fitxer_parquet = r'C:\Users\polti\Downloads\lexicons\split\JPM_trans.parquet'
 df = pd.read_parquet(fitxer_parquet)
 
+
+if 'Volume' not in df.columns:
+    df['Volume'] = 0.0   
 # Eliminar la primera columna "Unnamed: 0" si apareix
-df.drop(df.columns[0], axis=1, inplace=True)
+# df.drop(df.columns[0], axis=1, inplace=True)
 
 # Establir la columna "Date" (o la corresponent) com a índex i convertir a datetime
-df.set_index(df.columns[0], inplace=True)
+df.set_index(df['Date'], inplace=True)
 
 df.index = pd.to_datetime(df.index)
 
-# Crear les columnes de BULL, BEAR i finalment la BBr
-df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
-df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
-df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
+# # Crear les columnes de BULL, BEAR i finalment la BBr
+# df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
+# df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
+# df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 
 df["DailyReturn"] = df["Close"].pct_change() * 100  # Retorn diari en percentatge
-print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
+# print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 
-#ver el valor de bbr entre los dias 2021-10-23 y 2021-11-23
-print("El valor de BBr entre 2021-10-23 y 2021-11-23 es:")
-print(df.loc['2021-10-20':'2021-11-23', 'BBr'])
-print(df.loc['2021-10-23':'2021-11-23', 'DailyReturn'])
-
+# #ver el valor de bbr entre los dias 2021-10-23 y 2021-11-23
+# print("El valor de BBr entre 2021-10-23 y 2021-11-23 es:")
+# print(df.loc['2021-10-20':'2021-11-23', 'BBr'])
+# print(df.loc['2021-10-23':'2021-11-23', 'DailyReturn'])
+#establecer que la columna "sentiment_score" es la BBr
+df.rename(columns={'sentiment_score': 'BBr'}, inplace=True)
 # Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
 
 
@@ -330,13 +334,13 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         NOUSentimentROC_Strategy,
-        upper_threshold=60, lower_threshold=11, mom_lb=10, mom_avg=0.02, ema_period=57, atr_p=27, sl_mul=3.0, tp_mul=1.9, allow_long=True, allow_short=True
+        upper_threshold=82, lower_threshold=33, mom_lb=9, mom_avg=0.08, ema_period=39, atr_p=30, sl_mul=1.6, tp_mul=1.8, allow_long=True, allow_short=True
     )
 
-    data = NOUMyPandasDataSentiment_ROC(dataname=train)
+    data = NOUMyPandasDataSentiment_ROC(dataname=test)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
-    cerebro.broker.setcommission(commission=0.001)
+    cerebro.broker.setcommission(commission=0.005)
 
     cerebro.addanalyzer(bt.analyzers.SharpeRatio, _name='sharpe', riskfreerate=0.02)
     cerebro.addanalyzer(bt.analyzers.AnnualReturn, _name='annual')

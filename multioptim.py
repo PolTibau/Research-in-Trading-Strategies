@@ -46,28 +46,48 @@ def suppress_output():
         finally:
             sys.stdout = old_stdout
 
-parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
-df = pd.read_parquet(parquet_path)
+# parquet_path = r'C:\Users\polti\OneDrive\Documents\FME\Trading\data\AMZN_reord.parquet'
+# df = pd.read_parquet(parquet_path)
 
-# Elimina primera columna si és Index antic
-df.drop(df.columns[0], axis=1, inplace=True)
-df.set_index(df.columns[0], inplace=True)
+# # Elimina primera columna si és Index antic
+# df.drop(df.columns[0], axis=1, inplace=True)
+# df.set_index(df.columns[0], inplace=True)
+# df.index = pd.to_datetime(df.index)
+
+# # Columnes sentiment
+# df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
+# df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
+# df["BBr"]  = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
+# df["DailyReturn"] = df["Close"].pct_change() * 100
+
+# print("Files amb sentiment NULL:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
+
+# train_size = int(len(df) * 0.7)
+# train = df.iloc[:train_size]
+
+# # Rangs per Optuna
+# BBr_max, BBr_min = int(df["BBr"].max()), int(df["BBr"].min())
+# BBr_av = int((BBr_min + BBr_max) // 2)
+
+fitxer_parquet = r'C:\Users\polti\Downloads\lexicons\split\JPM_trans.parquet'
+df = pd.read_parquet(fitxer_parquet)
+
+
+if 'Volume' not in df.columns:
+    df['Volume'] = 0.0   
+
+df.set_index(df['Date'], inplace=True)
+
 df.index = pd.to_datetime(df.index)
 
-# Columnes sentiment
-df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finupPartscr"])
-df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
-df["BBr"]  = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
-df["DailyReturn"] = df["Close"].pct_change() * 100
 
-print("Files amb sentiment NULL:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
+df["DailyReturn"] = df["Close"].pct_change() * 100  # Retorn diari en percentatge
+df.rename(columns={'sentiment_score': 'BBr'}, inplace=True)
 
-train_size = int(len(df) * 0.7)
+
+train_size = int(len(df) * 0.70)
 train = df.iloc[:train_size]
-
-# Rangs per Optuna
-BBr_max, BBr_min = int(df["BBr"].max()), int(df["BBr"].min())
-BBr_av = int((BBr_min + BBr_max) // 2)
+test = df.iloc[train_size:]
 
 # ───────────────────────────────
 # 2. Funcions de backtest i Optuna
@@ -89,15 +109,15 @@ def objective(trial, commission):
     # low = trial.suggest_int('lower_threshold',  BBr_min, up - 2)
     # if low >= up:
     #     return -1e9  # rebutja combinació impossible}
-    # params = {
-    #     'upper_threshold': trial.suggest_int('upper_threshold', 50, 100),
-    #     'lower_threshold': trial.suggest_int('lower_threshold', 0, 50),
-    #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
-    #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
-    #     'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
-    #     'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
-    #     'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
-    # }
+    params = {
+        'upper_threshold': trial.suggest_int('upper_threshold', 50, 100),
+        'lower_threshold': trial.suggest_int('lower_threshold', 0, 50),
+        'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
+        'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
+        'ema_margin_pct': trial.suggest_float('ema_margin_pct', 0.003, 0.01, step=0.0001),
+        'stop_up': trial.suggest_float('stop_up', 1.0, 10.0, step=0.25),
+        'stop_down': trial.suggest_float('stop_down', 1.0, 10.0, step=0.25),
+    }
     # params = {
     #     'long_ema_period': trial.suggest_int('long_ema_period', 20, 50),
     #     'short_ema_period': trial.suggest_int('short_ema_period', 3, 19),
@@ -115,18 +135,18 @@ def objective(trial, commission):
     #     'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
     #     'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
     # }
-    params = {
-        'mom_lb':       trial.suggest_int('mom_lb', 3, 10),
-        'mom_avg':      trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01),
-        'ema_period':   trial.suggest_int('ema_period', 30, 80),
-        'atr_p':        trial.suggest_int('atr_p', 10, 30),
-        'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
-        'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
-    }
+    # params = {
+    #     'mom_lb':       trial.suggest_int('mom_lb', 3, 10),
+    #     'mom_avg':      trial.suggest_float('mom_avg', 0.0, 0.3, step=0.01),
+    #     'ema_period':   trial.suggest_int('ema_period', 30, 80),
+    #     'atr_p':        trial.suggest_int('atr_p', 10, 30),
+    #     'sl_mul':       trial.suggest_float('sl_mul', 1.0, 3.0, step=0.1),
+    #     'tp_mul':       trial.suggest_float('tp_mul', 1.0, 3.0, step=0.1),
+    # }
 
     return run_backtest(
-        NOUROC_Strategy_R,
-        NOUROC_R,
+        SentimentBI_EMA_Strategy_R,
+        MyPandasDataSentiment_BI_EMA_R,
         params,
         commission,
     )
@@ -140,7 +160,7 @@ def optimize_one_commission(commission, n_trials=1000):
 # 3. Llançament paral·lel
 # ───────────────────────────────
 if __name__ == '__main__':
-    commissions = [0.001, 0.001, 0.003, 0.003, 0.005, 0.005]
+    commissions = [0.001, 0.003, 0.005]
     n_workers   = min(len(commissions), os.cpu_count() or 1)
 
     results = []
