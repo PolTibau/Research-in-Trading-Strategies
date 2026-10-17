@@ -1,0 +1,7 @@
+# Versions are intentionally not pinned: the code was written against whatever
+# was current in early 2025 and has not been re-validated since.
+pandas
+numpy
+matplotlib
+backtrader
+optuna
