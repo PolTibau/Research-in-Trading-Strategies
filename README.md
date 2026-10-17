@@ -91,11 +91,19 @@ Strategies go long when `BBr` is above an upper threshold **and** the technical 
 
 ## Optimization procedure
 
-Each `<pkg>/optimize.py` uses the first 25 % of the rows for the Optuna search (`train`) and runs 500–700 trials maximizing the final portfolio value (initial cash 100 000, commission 1 %). The best parameters are printed at the end. The `only_sentiment` scripts use their own broker settings (initial cash 100 000 / 105 000, commission 0 %–1 %).
+Each `<pkg>/optimize.py` uses the first 25 % of the rows for the Optuna search (`train`) and runs 500–700 trials maximizing the final portfolio value (initial cash 100 000, commission 1 %). The best parameters are printed at the end, followed by the same parameters re-run on the held-out 75 % (`test`), so both the in-sample and the out-of-sample final value are reported. The split lives in `common/data.py` (`TRAIN_FRACTION`). The `only_sentiment` scripts use their own broker settings (initial cash 100 000 / 105 000, commission 0 %–1 %).
+
+### Evaluation window of the single-run scripts
+
+Every script in `backtests/` and `only_sentiment/` has an `EVALUATION_WINDOW` constant at the top: `"test"` (default, out-of-sample), `"train"` or `"full"`. Their hard-coded parameters were not necessarily fitted on this split, so the held-out window is the conservative default; set `"full"` to reproduce the old behaviour.
+
+### Rows without sentiment
+
+When `BULL + BEAR == 0` the ratio `BBr` is undefined (0/0 = `NaN`); those rows get the neutral value `BBr = 50` in all scripts. Before, this was only attempted in the `<pkg>/optimize.py` files via `replace(0, 50)`, which missed the `NaN` rows and wrongly rewrote rows whose `BBr` was genuinely 0.
 
 ## Example output
 
-Backtrader plot of the WPR + EMA strategy:
+Backtrader plots of the WPR + EMA strategy (produced with earlier versions of the scripts, before the evaluation-window and null-sentiment changes):
 
 ![WPR+EMA on Apple](docs/images/wpr_ema_apple.png)
 ![WPR+EMA on Amazon](docs/images/wpr_ema_amazon.png)
@@ -106,6 +114,4 @@ Backtrader plot of the WPR + EMA strategy:
 - **No tests, and this layout has not been executed end to end** after the reorganization (the data is not in the repository); only syntax and import resolution were checked.
 - **Strategy code is duplicated** between each `<pkg>/strategy.py` and the matching `backtests/` script, and the optimizers share most of their boilerplate. Extracting a common base class would be the natural next step.
 - **Scripts run on import** (no `main()` / `if __name__ == "__main__"` guard), so they are meant to be launched with `python -m`, not imported.
-- **Out-of-sample evaluation is not performed.** `optimize.py` defines a `test` split (the remaining 75 %) but never uses it, and the `backtests/` scripts run on the full data set, including the window used for optimization. Reported results are therefore in-sample.
-- **Null sentiment rows.** `BBr` is `NaN` (0/0) when `BULL + BEAR == 0`, and `replace(0, 50)` only affects rows where `BBr` is exactly 0, so the comment "rows without sentiment get BBr = 50" does not hold for those rows.
 - The `Sentiment*Strategy*_R` classes carry numeric suffixes (`...4_R`, `...7_R`) inherited from earlier iterations; they were not renamed to keep the logic untouched.

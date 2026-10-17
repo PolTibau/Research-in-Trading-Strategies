@@ -1,6 +1,9 @@
 import pandas as pd
 import backtrader as bt
-from common.data import csv_path
+from common.data import csv_path, select_window
+
+# Rows the backtest runs on: "test" (out-of-sample, default), "train" or "full".
+EVALUATION_WINDOW = "test"
 
 # -------------------------------
 # Carregar el CSV original i preparar la dada
@@ -24,6 +27,7 @@ df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["find
 
 # Calcular la ràtio Bull-Bear (BBr)
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
+df.loc[(df["BULL"] + df["BEAR"]) == 0, "BBr"] = 50  # no sentiment -> neutral 50 (0/0 gives NaN)
 
 # Opcional: comprovar l'ordre de columnes per assegurar-nos que BBr està com esperem
 print("Columnes disponibles:", df.columns.tolist())
@@ -98,7 +102,7 @@ if __name__ == '__main__':
     cerebro.addstrategy(SentimentStrategy, threshold=50, allow_short=False)
 
     # Afegir el feed de dades directament des del DataFrame modificat
-    data = MyPandasDataSentiment(dataname=df)
+    data = MyPandasDataSentiment(dataname=select_window(df, EVALUATION_WINDOW))
     cerebro.adddata(data)
 
     cerebro.broker.setcash(100000.0)

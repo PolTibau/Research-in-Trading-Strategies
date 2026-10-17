@@ -26,3 +26,30 @@ def csv_path(name):
             "(see the 'Data' section of the README)."
         )
     return path
+
+
+# Fraction of the history used to fit/optimize parameters. The rest is held out.
+TRAIN_FRACTION = 0.25
+
+
+def split_train_test(df):
+    """Chronological split: first ``TRAIN_FRACTION`` of the rows vs the rest."""
+    train_size = int(len(df) * TRAIN_FRACTION)
+    return df.iloc[:train_size], df.iloc[train_size:]
+
+
+def select_window(df, window):
+    """Return the part of ``df`` a backtest should run on.
+
+    ``"test"``  held-out (out-of-sample) rows - the default for evaluation,
+    ``"train"`` the rows used for optimization,
+    ``"full"``  everything (in-sample for the train part; use with care).
+    """
+    if window == "full":
+        return df
+    train, test = split_train_test(df)
+    if window == "train":
+        return train
+    if window == "test":
+        return test
+    raise ValueError(f"window must be 'train', 'test' or 'full', got {window!r}")
