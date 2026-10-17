@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from S_CCI_optimized_strategy import MyPandasDataSentiment4_R, SentimentMomentumStrategy4_R
+from wpr_rsi.strategy import MyPandasDataSentiment6_R, SentimentWPRStrategy_R
+from common.data import csv_path, split_train_test
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('GOOG')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -27,13 +28,11 @@ df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
-df["BBr"].replace(0, 50, inplace=True)
+df.loc[(df["BULL"] + df["BEAR"]) == 0, "BBr"] = 50  # no sentiment -> neutral 50 (0/0 gives NaN)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test
-train_size = int(len(df) * 0.25)
-train = df.iloc[:train_size]
-test = df.iloc[train_size:]
+train, test = split_train_test(df)
 print("Train:", train.shape, "Test:", test.shape)
 
 #veamos el maximo de la columna BBr
@@ -51,24 +50,26 @@ possible_lower = range(BBr_min, BBr_av)
 possible_neutral_lower = range(BBr_av-15, BBr_av)
 possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 
-def run_backtest(upper_threshold, lower_threshold, cci_upper_threshold, cci_lower_threshold, neutral_lower, neutral_upper, sma_period):
+def run_backtest(upper_threshold, lower_threshold, wpr_os, wpr_ob, rsi_os, rsi_ob, period, neutral_lower, neutral_upper, dataset=train):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment4_R(dataname=train)
+    data = MyPandasDataSentiment6_R(dataname=dataset)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentMomentumStrategy4_R,
+        SentimentWPRStrategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
-        cci_upper_threshold=cci_upper_threshold,
-        cci_lower_threshold=cci_lower_threshold,
+        wpr_os=wpr_os,
+        wpr_ob=wpr_ob,
+        rsi_os=rsi_os,
+        rsi_ob=rsi_ob,
+        period=period,
         neutral_lower=neutral_lower,
         neutral_upper=neutral_upper,
-        sma_period=sma_period,
         allow_long=True,
         allow_short=True
     )
@@ -110,17 +111,17 @@ def objective(trial):
 
     nu = trial.suggest_int('neutral_upper', nu_min, nu_max)
 
-    # Momentum days
-    sma_period = trial.suggest_int('sma_period', 10, 30)
+    # period days
+    period = trial.suggest_int('period', 10, 30)
 
-    #cci_up
-    cci_up = trial.suggest_int('cci_upper_threshold', 70, 140)
-
-    #cci_low
-    cci_low = trial.suggest_int('cci_lower_threshold', -140, -70)
+    #oversold_threshold and overbought_threshold
+    wpr_os = trial.suggest_int('wpr_os', -100, -75)
+    wpr_ob = trial.suggest_int('wpr_ob', -25, 0)
+    rsi_os = trial.suggest_int('rsi_os', 25, 40)
+    rsi_ob = trial.suggest_int('rsi_ob', 60, 75)
 
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, cci_up, cci_low, nl, nu, sma_period)
+    final_val = run_backtest(up, low, wpr_os, wpr_ob, rsi_os, rsi_ob, period, nl, nu)
     
     return final_val
 
@@ -130,3 +131,8 @@ study.optimize(objective, n_trials=700)  # prueba 200 iteraciones
 print()
 print("Els millors paràmetres són:", study.best_params)
 print("Valor óptimo:", study.best_value)
+
+# Out-of-sample check: re-run the best parameters on the held-out test split.
+test_value = run_backtest(**study.best_params, dataset=test)
+print("Valor final (train, in-sample):", study.best_value)
+print("Valor final (test, out-of-sample):", test_value)

@@ -2,11 +2,15 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
+from common.data import csv_path, select_window
+
+# Rows the backtest runs on: "test" (out-of-sample, default), "train" or "full".
+EVALUATION_WINDOW = "test"
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('AAPL')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -20,6 +24,7 @@ df.index = pd.to_datetime(df.index)
 df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhypePartscr"])
 df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
+df.loc[(df["BULL"] + df["BEAR"]) == 0, "BBr"] = 50  # no sentiment -> neutral 50 (0/0 gives NaN)
 
 # Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
 df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
@@ -275,7 +280,7 @@ if __name__ == '__main__':
         allow_short=True
     )
     
-    data = MyPandasDataSentiment3(dataname=df)
+    data = MyPandasDataSentiment3(dataname=select_window(df, EVALUATION_WINDOW))
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)

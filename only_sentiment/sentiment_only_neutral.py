@@ -1,11 +1,15 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import backtrader as bt
+from common.data import csv_path, select_window
+
+# Rows the backtest runs on: "test" (out-of-sample, default), "train" or "full".
+EVALUATION_WINDOW = "test"
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('AAPL')
 #Amb AAPL obtenim balanç positiu amb [65, 30]
 df = pd.read_csv(fitxer_csv)
 
@@ -20,6 +24,7 @@ df.index = pd.to_datetime(df.index)
 df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhypePartscr"])
 df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
+df.loc[(df["BULL"] + df["BEAR"]) == 0, "BBr"] = 50  # no sentiment -> neutral 50 (0/0 gives NaN)
 
 print(df[ (df["BULL"] + df["BEAR"]) == 0 ])
 print("El nombre de files amb el sentiment NULL és:", df[ (df["BULL"] + df["BEAR"]) == 0 ].shape[0])
@@ -125,7 +130,7 @@ if __name__ == '__main__':
     cerebro.addsizer(PercentSizer, perc=0.20)  # Ex: 20% en cada operació
 
     # Crear el feed de dades des del DataFrame
-    data = MyPandasDataSentiment3(dataname=df)
+    data = MyPandasDataSentiment3(dataname=select_window(df, EVALUATION_WINDOW))
     cerebro.adddata(data)
 
     # Configurar el broker

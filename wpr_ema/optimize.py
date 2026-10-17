@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from S_R_optimized_strategy import MyPandasDataSentiment3_R, SentimentMomentumStrategy_R
+from wpr_ema.strategy import MyPandasDataSentiment7_R, SentimentWPR2Strategy_R
+from common.data import csv_path, split_train_test
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('AMZN')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -27,13 +28,11 @@ df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
-df["BBr"].replace(0, 50, inplace=True)
+df.loc[(df["BULL"] + df["BEAR"]) == 0, "BBr"] = 50  # no sentiment -> neutral 50 (0/0 gives NaN)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test
-train_size = int(len(df) * 0.25)
-train = df.iloc[:train_size]
-test = df.iloc[train_size:]
+train, test = split_train_test(df)
 print("Train:", train.shape, "Test:", test.shape)
 
 #veamos el maximo de la columna BBr
@@ -51,22 +50,26 @@ possible_lower = range(BBr_min, BBr_av)
 possible_neutral_lower = range(BBr_av-15, BBr_av)
 possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 
-def run_backtest(upper_threshold, lower_threshold, neutral_lower, neutral_upper, momentum_days):
+def run_backtest(upper_threshold, lower_threshold, wpr_os, wpr_ob, wpr_period, ema_period, ema_th, neutral_lower, neutral_upper, dataset=train):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment3_R(dataname=train)
+    data = MyPandasDataSentiment7_R(dataname=dataset)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentMomentumStrategy_R,
+        SentimentWPR2Strategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
+        wpr_os=wpr_os,
+        wpr_ob=wpr_ob,
+        wpr_period=wpr_period,
+        ema_period=ema_period,
+        ema_th=ema_th,
         neutral_lower=neutral_lower,
         neutral_upper=neutral_upper,
-        momentum_days=momentum_days,
         allow_long=True,
         allow_short=True
     )
@@ -89,36 +92,61 @@ def objective(trial):
     up = trial.suggest_int('upper_threshold', BBr_av, BBr_max)
     low = trial.suggest_int('lower_threshold', BBr_min, up - 2)  # Asegurar que low < up - 2
 
+    # Verificación temprana para descartar combinaciones inválidas
     if low >= up:
-        return float('-1e9')  # Valor muy bajo para descartar este conjunto de parámetros
+        trial.report(-1e9, step=0)  # Reportar valor malo
+        raise optuna.TrialPruned()  # Pruning temprano para ahorrar cómputo
 
     # Definir neutral_lower con restricciones adecuadas
     nl_min = low + 1
     nl_max = up - 2
-    if nl_min >= nl_max:
-        return float('-1e9')  # Descartar si no hay espacio válido
+
+    # Validación de rangos antes de sugerir valores
+    if nl_min > nl_max:  # Ahora permitimos igualdad, pero no si nl_min > nl_max
+        trial.report(-1e9, step=1)
+        raise optuna.TrialPruned()
 
     nl = trial.suggest_int('neutral_lower', nl_min, nl_max)
 
-    # Definir neutral_upper con restricciones
-    nu_min = nl
+    # Definir neutral_upper, ahora permitimos que sea igual a neutral_lower
+    nu_min = nl  # Antes era nl + 1, ahora permitimos igualdad
     nu_max = up - 1
-    if nu_min >= nu_max:
-        return float('-1e9')  # Descartar si no hay espacio válido
+
+    if nu_min > nu_max:  # Evitamos valores inválidos
+        trial.report(-1e9, step=2)
+        raise optuna.TrialPruned()
 
     nu = trial.suggest_int('neutral_upper', nu_min, nu_max)
 
-    # Momentum days
-    mom = trial.suggest_int('momentum_days', 1,6)
+    # Sugerencias para otros parámetros
+    wpr_os = trial.suggest_int('wpr_os', -100, -75)
+    wpr_ob = trial.suggest_int('wpr_ob', -25, 0)
+    wpr_period = trial.suggest_int('wpr_period', 10, 20)
+
+    ema_period = trial.suggest_int('ema_period', 15, 50)
+    ema_th = trial.suggest_int('ema_th', 40, 60)
 
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, nl, nu, mom)
-    
+    final_val = run_backtest(up, low, wpr_os, wpr_ob, wpr_period, ema_period, ema_th, nl, nu)
+
+    # Reportar el valor del objetivo a Optuna
+    trial.report(final_val, step=3)
+
+    # Si el rendimiento es bajo, considerar pruning
+    if trial.should_prune():
+        raise optuna.TrialPruned()
+
     return final_val
 
+# Configurar Optuna con paralelización para optimización más rápida
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=500)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=700, n_jobs=4)  # Ejecuta en paralelo en 4 núcleos
 
-print()
-print("Els millors paràmetres són:", study.best_params)
+# Mostrar los mejores parámetros encontrados
+print("\nEls millors paràmetres són:", study.best_params)
 print("Valor óptimo:", study.best_value)
+
+# Out-of-sample check: re-run the best parameters on the held-out test split.
+test_value = run_backtest(**study.best_params, dataset=test)
+print("Valor final (train, in-sample):", study.best_value)
+print("Valor final (test, out-of-sample):", test_value)
