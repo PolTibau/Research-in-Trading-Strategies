@@ -1,11 +1,12 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 import backtrader as bt
+from common.data import csv_path
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('AAPL')
 #Amb AAPL obtenim balanç positiu amb [65, 30]
 df = pd.read_csv(fitxer_csv)
 

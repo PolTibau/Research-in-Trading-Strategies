@@ -2,11 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
+from common.data import csv_path
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('GOOG')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -26,7 +27,7 @@ print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"])
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment5(bt.feeds.PandasData):
+class MyPandasDataSentiment6(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
@@ -43,39 +44,34 @@ class MyPandasDataSentiment5(bt.feeds.PandasData):
     )
 
 # --------------------------------------------------------------------
-# 3. Definir el indicador Stochastic Momentum Index (SMI)
+# 3. Definir el indicador Williams %R (WPR)
 # --------------------------------------------------------------------
-class SMI(bt.Indicator):
-    """Cálculo del Stochastic Momentum Index (SMI) personalizado"""
-    lines = ('smi', 'smasig')  # Definir las líneas del indicador
-    params = (('period', 14), ('pfast', 3), ('pslow', 3), ('smasig', 3))  # Parámetros ajustables
+class WPR(bt.Indicator):
+    """Cálculo del Williams %R (WPR) personalizado"""
+    lines = ('wpr',)  # Definir la línea del indicador
+    params = (('period', 14),)  # Período ajustable
 
     def __init__(self):
-        high_low_mean = (self.data.high + self.data.low) / 2  # Precio medio (High + Low) / 2
-        hl_range = self.data.high - self.data.low  # Rango de precios (High - Low)
-        
-        # Suavizado rápido y lento del precio medio
-        smi_fast = bt.indicators.EMA(high_low_mean - self.data.close, period=self.p.pfast)
-        smi_slow = bt.indicators.EMA(smi_fast, period=self.p.pslow)
+        highest_high = bt.indicators.Highest(self.data.high, period=self.p.period)  # Máximo del periodo
+        lowest_low = bt.indicators.Lowest(self.data.low, period=self.p.period)  # Mínimo del periodo
 
-        # Cálculo del SMI
-        self.lines.smi = 100 * smi_slow / bt.indicators.EMA(hl_range, period=self.p.pslow)
+        # Fórmula del WPR
+        self.lines.wpr = -100 * ((highest_high - self.data.close) / (highest_high - lowest_low))
 
-        # Línea de señal del SMI
-        self.lines.smasig = bt.indicators.EMA(self.lines.smi, period=self.p.smasig)
 
 
 # --------------------------------------------------------------------
-# 4. Definir l'estratègia 
+# 4. Definir l'estratègia amb escalat de posicions i parametrització dels dies de momentum
 # --------------------------------------------------------------------
-class SentimentSMIStrategy(bt.Strategy):
+class SentimentWPRStrategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
-        ('pfast', 3),
-        ('pslow', 3),
-        ('smasig', 5),
         ('period', 14),
+        ('wpr_os', -80),
+        ('wpr_ob', -20),
+        ('rsi_os', 30),
+        ('rsi_ob', 70),
         ('neutral_lower', 26),
         ('neutral_upper', 27),
         ('allow_short', True),
@@ -84,8 +80,8 @@ class SentimentSMIStrategy(bt.Strategy):
 
     def __init__(self):
         self.bbr = self.datas[0].bbr
-        self.smi = SMI(self.datas[0], period=self.params.period, pfast=self.params.pfast, pslow=self.params.pslow, smasig=self.params.smasig)
-        self.signal = self.smi.smasig
+        self.wpr = WPR(self.datas[0], period=self.params.period)
+        self.rsi = bt.indicators.RSI(period=self.params.period)
         self.open_price = self.datas[0].open  # Precio de Open para entrar y salir
         self.initial_cash = self.broker.getvalue()
         self.current_invested_fraction = 0.0
@@ -101,13 +97,12 @@ class SentimentSMIStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Completed]:
             trade_bbr = self.bbr[-1]  # BBr del día de la operación
-            signal = self.signal[0]
-            trade_smi = self.smi[0]
+            trade_wpr = self.wpr[-1]  # WPR del día de la operación
             current_cash = self.broker.getvalue()  # Valor del portafoli després de l'operació
             flag = order.info.get('flag')
 
             if flag == 'opening_long':
-                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN LLARG* - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || SMI: {trade_smi}% || Signal: {signal} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
+                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN LLARG* - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || WPR: {trade_wpr} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
                 self.entry_price = order.executed.price
                 self.entry_date = self.datas[0].datetime.date(0)
                 self.trade_type = "LLARG"
@@ -115,7 +110,7 @@ class SentimentSMIStrategy(bt.Strategy):
                 self.open_commission = order.executed.comm
 
             elif flag == 'opening_short':
-                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN CURT** - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || SMI: {trade_smi}% || Signal: {signal} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
+                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN CURT** - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || WPR: {trade_wpr} || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
                 self.entry_price = order.executed.price
                 self.entry_date = self.datas[0].datetime.date(0)
                 self.trade_type = "CURT"
@@ -210,8 +205,9 @@ class SentimentSMIStrategy(bt.Strategy):
 
     def next(self):
         #comprem si el SMI creua per sobre de la linia de senyal
-
         bbr_now = self.bbr[0]
+        wpr_now = self.wpr[0]
+        rsi_now = self.rsi[0]
         current_date = self.data.datetime.date(0)
 
         if current_date == self.last_date:
@@ -236,8 +232,8 @@ class SentimentSMIStrategy(bt.Strategy):
                 self.current_invested_fraction = 0.0
             return
 
-        # Entrada LARGA (100% de la cartera) con momentum positivo
-        if bbr_now > self.params.upper_threshold and self.smi[0] > self.signal[0] and self.smi[-1] < self.signal[-1]:
+        # Entrada LARGA (100% de la cartera) i WPR < -80 (possible sobrevenda)
+        if bbr_now > self.params.upper_threshold and wpr_now < self.params.wpr_os and rsi_now < self.params.rsi_os:
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
@@ -253,7 +249,7 @@ class SentimentSMIStrategy(bt.Strategy):
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
-        elif bbr_now < self.params.lower_threshold and self.smi[0] < self.signal[0] and self.smi[-1] > self.signal[-1]:
+        elif bbr_now < self.params.lower_threshold and wpr_now > self.params.wpr_ob and rsi_now > self.params.rsi_ob:
             if self.params.allow_short:
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
@@ -275,21 +271,22 @@ class SentimentSMIStrategy(bt.Strategy):
 if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
-        SentimentSMIStrategy,
-        upper_threshold=53,
-        lower_threshold=27,
-        pfast=7,
-        pslow=8,
-        period=18,
-        smasig=4,
-        neutral_lower=41,
-        neutral_upper=41,
+        SentimentWPRStrategy,
+        upper_threshold=46,
+        lower_threshold=34,
+        period=11,
+        wpr_os=-79,
+        wpr_ob=-23,
+        rsi_os=26,
+        rsi_ob=74,
+        neutral_lower=38,
+        neutral_upper=38,
         allow_long=True,
         allow_short=True
     )
     
 
-    data = MyPandasDataSentiment5(dataname=df)
+    data = MyPandasDataSentiment6(dataname=df)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)

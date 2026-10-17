@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from S_R_optimized_strategy import MyPandasDataSentiment3_R, SentimentMomentumStrategy_R
+from smi.strategy import MyPandasDataSentiment5_R, SentimentSMIStrategy_R
+from common.data import csv_path
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('AAPL')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -27,7 +28,7 @@ df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
-df["BBr"].replace(0, 50, inplace=True)
+df["BBr"] = df["BBr"].replace(0, 50)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test
@@ -51,22 +52,25 @@ possible_lower = range(BBr_min, BBr_av)
 possible_neutral_lower = range(BBr_av-15, BBr_av)
 possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 
-def run_backtest(upper_threshold, lower_threshold, neutral_lower, neutral_upper, momentum_days):
+def run_backtest(upper_threshold, lower_threshold, pfast, pslow, period, smasig, neutral_lower, neutral_upper):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment3_R(dataname=train)
+    data = MyPandasDataSentiment5_R(dataname=train)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentMomentumStrategy_R,
+        SentimentSMIStrategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
+        pfast=pfast,
+        pslow=pslow,
         neutral_lower=neutral_lower,
         neutral_upper=neutral_upper,
-        momentum_days=momentum_days,
+        period=period,
+        smasig=smasig,
         allow_long=True,
         allow_short=True
     )
@@ -108,16 +112,21 @@ def objective(trial):
 
     nu = trial.suggest_int('neutral_upper', nu_min, nu_max)
 
-    # Momentum days
-    mom = trial.suggest_int('momentum_days', 1,6)
+    # period days
+    period = trial.suggest_int('period', 10, 30)
+
+    #pfast, pslow and smasig
+    pfast = trial.suggest_int('pfast', 1, min(10, period))
+    pslow = trial.suggest_int('pslow', pfast, min(20, period))
+    smasig = trial.suggest_int('smasig', 3, max(3, min(10,pslow)))
 
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, nl, nu, mom)
+    final_val = run_backtest(up, low, pfast, pslow, period, smasig, nl, nu)
     
     return final_val
 
 study = optuna.create_study(direction='maximize')
-study.optimize(objective, n_trials=500)  # prueba 200 iteraciones
+study.optimize(objective, n_trials=700)  # prueba 200 iteraciones
 
 print()
 print("Els millors paràmetres són:", study.best_params)

@@ -1,10 +1,11 @@
 import pandas as pd
 import backtrader as bt
+from common.data import csv_path
 
 # -------------------------------
 # Carregar el CSV original i preparar la dada
 # -------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\DB.csv'
+fitxer_csv = csv_path('DB')
 df = pd.read_csv(fitxer_csv)
 
 # Esborrem la primera columna (la que surt com a "Unnamed: 0")

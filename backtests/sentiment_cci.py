@@ -2,11 +2,12 @@ import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
+from common.data import csv_path
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('AAPL')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -21,20 +22,17 @@ df["BULL"] = 0.33 * (df["positivePartscr"] + df["certaintyPartscr"] + df["finhyp
 df["BEAR"] = 0.33 * (df["negativePartscr"] + df["uncertaintyPartscr"] + df["findownPartscr"])
 df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 
-# Calcular el retorn diari utilitzant la columna 'Close' (pots canviar a 'Adj Close')
-df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 
 # --------------------------------------------------------------------
 # 2. Definir la classe de dades personalitzada a partir de Pandas
 # --------------------------------------------------------------------
-class MyPandasDataSentiment3(bt.feeds.PandasData):
+class MyPandasDataSentiment4(bt.feeds.PandasData):
     """
     Feed de dades personalitzat que inclou les línies:
       - 'bbr' (BBr)
-      - 'daily_return' (Retorn diari)
     """
-    lines = ('bbr', 'daily_return',)
+    lines = ('bbr',)
     params = (
         ('datetime', None),
         ('open', 'Open'),
@@ -42,9 +40,7 @@ class MyPandasDataSentiment3(bt.feeds.PandasData):
         ('low', 'Low'),
         ('close', 'Close'),
         ('volume', 'Volume'),
-        ('openinterest', -1),
         ('bbr', 'BBr'),
-        ('daily_return', 'DailyReturn'),
     )
 
 # --------------------------------------------------------------------
@@ -54,16 +50,18 @@ class SentimentMomentumStrategy(bt.Strategy):
     params = (
         ('upper_threshold', 54),
         ('lower_threshold', 24),
+        ('cci_upper_threshold', 100),
+        ('cci_lower_threshold', -100),
         ('neutral_lower', 26),
         ('neutral_upper', 27),
-        ('momentum_days', 2),  # Nombre de dies requerits de momentum positiu/negatiu
+        ('sma_period', 2),  # Nombre de dies requerits de momentum positiu/negatiu
         ('allow_short', True),
         ('allow_long', True),
     )
 
     def __init__(self):
         self.bbr = self.datas[0].bbr
-        self.daily_return = self.datas[0].daily_return
+        self.cci = bt.indicators.CCI(self.datas[0], period=self.params.sma_period)  # Calculamos el CCI aquí
         self.open_price = self.datas[0].open  # Precio de Open para entrar y salir
         self.initial_cash = self.broker.getvalue()
         self.current_invested_fraction = 0.0
@@ -79,12 +77,12 @@ class SentimentMomentumStrategy(bt.Strategy):
     def notify_order(self, order):
         if order.status in [order.Completed]:
             trade_bbr = self.bbr[0]  # BBr del día de la operación
-            trade_return = [self.daily_return[0], self.daily_return[-1], self.daily_return[-2]]  # Daily Return del día de la operación
+            trade_cci = self.cci[0]  # CCI del día de la operación
             current_cash = self.broker.getvalue()  # Valor del portafoli després de l'operació
             flag = order.info.get('flag')
 
             if flag == 'opening_long':
-                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN LLARG* - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || Daily Return: {trade_return}% || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
+                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN LLARG* - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || CCI: {trade_cci}% || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
                 self.entry_price = order.executed.price
                 self.entry_date = self.datas[0].datetime.date(0)
                 self.trade_type = "LLARG"
@@ -92,7 +90,7 @@ class SentimentMomentumStrategy(bt.Strategy):
                 self.open_commission = order.executed.comm
 
             elif flag == 'opening_short':
-                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN CURT** - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || Daily Return: {trade_return}% || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
+                print(f"[{self.datas[0].datetime.date(0)}] **ENTRADA EN CURT** - Preu: {order.executed.price:.2f} || BBr: {trade_bbr:.2f} || Tamany: {order.executed.size} || CCI: {trade_cci}% || Valor Actual: {current_cash:.2f} || Comissió: {order.executed.comm:.2f}")
                 self.entry_price = order.executed.price
                 self.entry_date = self.datas[0].datetime.date(0)
                 self.trade_type = "CURT"
@@ -168,7 +166,6 @@ class SentimentMomentumStrategy(bt.Strategy):
             self.total_commission += order.executed.comm
 
     def open_position_fraction(self, fraction, is_long=True):
-
         price = self.data.open[0]
         comission = self.broker.getcommissioninfo(self.data).p.commission
 
@@ -186,22 +183,9 @@ class SentimentMomentumStrategy(bt.Strategy):
 
         return None
 
-    def last_n_days_positive(self):
-        """Verifica si los últimos N días han sido todos positivos en retorno."""
-        if len(self.daily_return) < self.params.momentum_days:
-            return False
-        return all(self.daily_return[-i] > 0 for i in range(self.params.momentum_days))
-
-    def last_n_days_negative(self):
-        """Verifica si los últimos N días han sido todos negativos en retorno."""
-        if len(self.daily_return) < self.params.momentum_days:
-            return False
-        return all(self.daily_return[-i] < 0 for i in range(self.params.momentum_days))
-
     def next(self):
         bbr_now = self.bbr[0]
-        positive_momentum = self.last_n_days_positive()
-        negative_momentum = self.last_n_days_negative()
+        cci_now = self.cci[0]
         current_date = self.data.datetime.date(0)
 
         if current_date == self.last_date:
@@ -227,7 +211,7 @@ class SentimentMomentumStrategy(bt.Strategy):
             return
 
         # Entrada LARGA (100% de la cartera) con momentum positivo
-        if bbr_now > self.params.upper_threshold and positive_momentum:
+        if bbr_now > self.params.upper_threshold and self.params.cci_upper_threshold < cci_now:
             # Si no estamos ya 100% largos
             if self.current_invested_fraction == -1.0:
                 close_order = self.close()
@@ -243,7 +227,7 @@ class SentimentMomentumStrategy(bt.Strategy):
                 self.current_invested_fraction = 1.0
 
         # Entrada CORTA (100% de la cartera) con momentum negativo
-        elif bbr_now < self.params.lower_threshold and negative_momentum:
+        elif bbr_now < self.params.lower_threshold and self.params.cci_lower_threshold > cci_now:
             if self.params.allow_short:
                 # Si no estamos ya 100% cortos
                 if self.current_invested_fraction == 1.0:
@@ -266,16 +250,18 @@ if __name__ == '__main__':
     cerebro = bt.Cerebro()
     strategy = cerebro.addstrategy(
         SentimentMomentumStrategy,
-        upper_threshold=54,
-        lower_threshold=24,
-        neutral_lower=26,
-        neutral_upper=27,
-        momentum_days=2,
+        upper_threshold=56,
+        lower_threshold=37,
+        cci_upper_threshold=87,
+        cci_lower_threshold=-90,
+        neutral_lower=39,
+        neutral_upper=40,
+        sma_period=24,
         allow_long=True,
         allow_short=True
     )
     
-    data = MyPandasDataSentiment3(dataname=df)
+    data = MyPandasDataSentiment4(dataname=df)
     cerebro.adddata(data)
     cerebro.broker.setcash(100000.0)
     cerebro.broker.setcommission(commission=0.01)

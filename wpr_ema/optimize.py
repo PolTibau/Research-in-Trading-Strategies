@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from S_WPR_EMA_optimized_strategy import MyPandasDataSentiment7_R, SentimentWPR2Strategy_R
+from wpr_ema.strategy import MyPandasDataSentiment7_R, SentimentWPR2Strategy_R
+from common.data import csv_path
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AMZN.csv'
+fitxer_csv = csv_path('AMZN')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -27,7 +28,7 @@ df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
-df["BBr"].replace(0, 50, inplace=True)
+df["BBr"] = df["BBr"].replace(0, 50)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test

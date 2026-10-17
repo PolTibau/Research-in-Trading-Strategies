@@ -3,12 +3,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 import backtrader as bt
 import optuna
-from S_SMI_optimized_strategy import MyPandasDataSentiment5_R, SentimentSMIStrategy_R
+from wpr_rsi.strategy import MyPandasDataSentiment6_R, SentimentWPRStrategy_R
+from common.data import csv_path
 
 # --------------------------------------------------------------------
 # 1. Carregar el CSV i preparar les dades en un DataFrame de pandas
 # --------------------------------------------------------------------
-fitxer_csv = r'C:\Users\polti\OneDrive\Documents\FME\Trading\dataSent\AAPL.csv'
+fitxer_csv = csv_path('GOOG')
 df = pd.read_csv(fitxer_csv)
 
 # Eliminar la primera columna "Unnamed: 0" si apareix
@@ -27,7 +28,7 @@ df["BBr"] = 100 * df["BULL"] / (df["BULL"] + df["BEAR"])
 df["DailyReturn"] = df["Adj Close"].pct_change() * 100  # Retorn diari en percentatge
 print("El nombre de files amb sentiment NULL és:", df[(df["BULL"] + df["BEAR"]) == 0].shape[0])
 #les files amb sentiment null, escollim un bbr de 50
-df["BBr"].replace(0, 50, inplace=True)
+df["BBr"] = df["BBr"].replace(0, 50)
 
 
 #separar les dades en train i test fent 1/4 per train i 3/4 per test
@@ -51,25 +52,26 @@ possible_lower = range(BBr_min, BBr_av)
 possible_neutral_lower = range(BBr_av-15, BBr_av)
 possible_neutral_upper = range(BBr_av, BBr_av+15, 1)# 45, 48
 
-def run_backtest(upper_threshold, lower_threshold, pfast, pslow, period, smasig, neutral_lower, neutral_upper):
+def run_backtest(upper_threshold, lower_threshold, wpr_os, wpr_ob, rsi_os, rsi_ob, period, neutral_lower, neutral_upper):
     # 1. Crear Cerebro
     cerebro = bt.Cerebro(stdstats=False)
     
     # 2. Crear feed desde el CSV
-    data = MyPandasDataSentiment5_R(dataname=train)
+    data = MyPandasDataSentiment6_R(dataname=train)
     cerebro.adddata(data)
 
     # 3. Añadir la estrategia
     cerebro.addstrategy(
-        SentimentSMIStrategy_R,
+        SentimentWPRStrategy_R,
         upper_threshold=upper_threshold,
         lower_threshold=lower_threshold,
-        pfast=pfast,
-        pslow=pslow,
+        wpr_os=wpr_os,
+        wpr_ob=wpr_ob,
+        rsi_os=rsi_os,
+        rsi_ob=rsi_ob,
+        period=period,
         neutral_lower=neutral_lower,
         neutral_upper=neutral_upper,
-        period=period,
-        smasig=smasig,
         allow_long=True,
         allow_short=True
     )
@@ -114,13 +116,14 @@ def objective(trial):
     # period days
     period = trial.suggest_int('period', 10, 30)
 
-    #pfast, pslow and smasig
-    pfast = trial.suggest_int('pfast', 1, min(10, period))
-    pslow = trial.suggest_int('pslow', pfast, min(20, period))
-    smasig = trial.suggest_int('smasig', 3, max(3, min(10,pslow)))
+    #oversold_threshold and overbought_threshold
+    wpr_os = trial.suggest_int('wpr_os', -100, -75)
+    wpr_ob = trial.suggest_int('wpr_ob', -25, 0)
+    rsi_os = trial.suggest_int('rsi_os', 25, 40)
+    rsi_ob = trial.suggest_int('rsi_ob', 60, 75)
 
     # Ejecutar el backtest
-    final_val = run_backtest(up, low, pfast, pslow, period, smasig, nl, nu)
+    final_val = run_backtest(up, low, wpr_os, wpr_ob, rsi_os, rsi_ob, period, nl, nu)
     
     return final_val
 
